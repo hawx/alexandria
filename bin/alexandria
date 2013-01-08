@@ -1,0 +1,45 @@
+#!/usr/bin/env ruby
+# coding: UTF-8
+
+require_relative '../lib/alexandria'
+require 'clive'
+require 'pp'
+
+
+class Alexandria::CLI < Clive
+
+  module Helpers
+    def check(bool)
+      bool ? "✓" : "✗"
+    end
+    
+    def find_device
+      Alexandria::Device.new(".")
+    end
+  end
+
+  command :list, arg: '<path>' do
+    bool :long
+  
+    action do
+      lib = Alexandria::Library.new(path)
+      device = find_device
+      
+      lib.authors.each do |author, books|
+        puts author.bold
+        
+        books.each do |book|
+          puts " #{check device.has?(book)} #{book.title}"
+        end
+        
+        puts ""
+      end
+    end
+  end
+  
+end
+
+Clive::Option::Runner.extend Alexandria::CLI::Helpers
+
+
+a = Alexandria::CLI.run
