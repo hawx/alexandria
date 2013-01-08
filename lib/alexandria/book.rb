@@ -54,6 +54,10 @@ module Alexandria
       def title
         metadata['title'].force_encoding("utf-8")
       end
+      
+      def extension
+        ".epub"
+      end
     end
     
     class Mobi < Book
@@ -76,6 +80,10 @@ module Alexandria
       
       def title
         metadata.title.force_encoding("utf-8")
+      end
+      
+      def extension
+        ".mobi"
       end
     end
     

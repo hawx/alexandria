@@ -5,6 +5,7 @@ require_relative '../lib/alexandria'
 require 'clive'
 require 'pp'
 
+LIB = Alexandria::Library.new File.expand_path(ENV["ALEXANDRIA_LIBRARY"])
 
 class Alexandria::CLI < Clive
 
@@ -17,15 +18,20 @@ class Alexandria::CLI < Clive
       Alexandria::Device.new(".")
     end
   end
-
-  command :list, arg: '<path>' do
+  
+  command :add, arg: '<book>' do
+    action do
+      LIB.add! book
+    end
+  end
+  
+  command :list do
     bool :long
   
     action do
-      lib = Alexandria::Library.new(path)
       device = find_device
       
-      lib.authors.each do |author, books|
+      LIB.authors.each do |author, books|
         puts author.bold
         
         books.each do |book|
@@ -37,9 +43,13 @@ class Alexandria::CLI < Clive
     end
   end
   
+  command :sync, arg: '<path>' do
+    action do
+      # sync library with device
+    end
+  end
+  
 end
 
 Clive::Option::Runner.extend Alexandria::CLI::Helpers
-
-
 a = Alexandria::CLI.run
