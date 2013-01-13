@@ -43,7 +43,7 @@ class Alexandria::CLI < Clive
     end
   end
   
-  command :sync, arg: '<path>' do
+  command :sync do
     action do
       # sync library with device
     end
