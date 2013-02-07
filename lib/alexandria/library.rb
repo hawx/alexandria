@@ -63,8 +63,7 @@ module Alexandria
     end
     
     def books
-      @books ||= Dir[@path + '*' + "*.{#{EXTENSIONS.join(',')}}"]
-                  .map {|path| Book.create(path) }
+      Pathname.glob(@path + '*' + "*").map {|dir| Book.new dir }
     end
   end
 end

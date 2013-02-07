@@ -13,10 +13,6 @@ class Alexandria::CLI < Clive
     def check(bool)
       bool ? "✓" : "✗"
     end
-    
-    def find_device
-      Alexandria::Device.new(".")
-    end
   end
   
   command :add, arg: '<book>' do
@@ -29,13 +25,11 @@ class Alexandria::CLI < Clive
     bool :long
   
     action do
-      device = find_device
-      
       LIB.authors.each do |author, books|
         puts author.bold
         
         books.each do |book|
-          puts " #{check device.has?(book)} #{book.title}"
+          puts "  #{book.title}"
         end
         
         puts ""

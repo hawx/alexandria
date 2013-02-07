@@ -12,15 +12,50 @@ end
 module Alexandria
   class Book
   
-    def self.create(path)
-      case File.extname(path)
-        when '.epub' then Epub.new(path)
-        when '.mobi' then Mobi.new(path)
+    def initialize(dir)
+      @dir = dir
+    end
+    
+    def versions
+      Pathname.glob @dir + '*'
+    end
+    
+    def extensions
+      versions.map &:extname
+    end
+    
+    def either
+      if epub?
+        epub
+      elsif mobi?
+        mobi
+      else
+        EmptyBook.new
       end
     end
-  
-    def initialize(path)
-      @path = path
+    
+    def epub?
+      extensions.include? '.epub'
+    end
+    
+    def epub
+      @epub ||= Epub.new(
+        versions.find {|v| v.extname == '.epub' }
+      )
+    end
+    
+    def mobi?
+      extensions.include? '.mobi'
+    end
+    
+    def mobi
+      @mobi ||= Mobi.new(
+        versions.find {|v| v.extname == '.mobi' }
+      )
+    end
+    
+    def method_missing(sym, *args, &block)
+      either.send sym, *args, &block
     end
     
     # def chapters
@@ -34,7 +69,38 @@ module Alexandria
     end
     alias_method :to_s, :inspect
     
-    class Epub < Book
+    
+    class EmptyBook
+      def initialize(path)
+        @path = path.to_s
+      end
+      
+      def data
+        {}
+      end
+      
+      def metadata
+        {}
+      end
+      
+      def chapters
+        []
+      end
+      
+      def author
+        "None"
+      end
+      
+      def title
+        "Untitled"
+      end
+      
+      def extension
+        ".missing"
+      end
+    end
+    
+    class Epub < EmptyBook
       def data
         @data ||= Peregrin::Epub.read(@path).to_book
       end
@@ -60,7 +126,7 @@ module Alexandria
       end
     end
     
-    class Mobi < Book
+    class Mobi < EmptyBook
       def data
         # todo...
         
