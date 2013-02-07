@@ -23,7 +23,7 @@ module Alexandria
       
       # If it exists, ask to replace
       if dest.exist?
-        return unless ask(" Book already exists!".red + " Replace? [y/n] ")
+        return unless agree(" Book already exists, replace? [y/n] ".red)
       end
       
       puts " moving".grey + " #{book_path}"
@@ -32,6 +32,30 @@ module Alexandria
       # Create dirs, and move
       FileUtils.mkdir_p dir
       FileUtils.cp book_path, dest
+      
+      convert dest
+    end
+    
+    def convert(book)
+      ext = book.extname[1..-1]
+      needs = EXTENSIONS - [ext]
+      base = book.to_s[0..-ext.size-1]
+      
+      needs.each do |new_ext|
+        new_book = base + new_ext
+        
+        puts "Converting to #{new_ext}".blue.bold
+        
+        if File.exist?(new_book)
+          return unless agree(" Book already converted, convert again? [y/n] ".red)
+        end
+        
+        if system "#{EBOOK_CONVERT} \"#{book}\" \"#{new_book}\""
+          puts " created".grey + " #{new_book}"
+        else
+          puts " problem converting".red
+        end
+      end
     end
     
     def authors
