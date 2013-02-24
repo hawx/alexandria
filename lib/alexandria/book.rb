@@ -12,6 +12,21 @@ end
 module Alexandria
   class Book
   
+    def self.create(path)
+      ext = File.extname(path) 
+
+      if Mobi::EXTENSIONS.include?(ext)
+        Mobi.new(path)
+        
+      elsif Epub::EXTENSIONS.include?(ext)
+        Epub.new(path)
+        
+      else
+        warn "Unrecognised file of type: #{File.extname(path)}"
+        exit
+      end
+    end
+  
     def initialize(dir)
       @dir = dir
     end
@@ -25,66 +40,58 @@ module Alexandria
     end
     
     def either
-      if epub?
-        epub
-      elsif mobi?
-        mobi
+      found = self.class.registered.find { |type|
+        send("#{type}?")
+      }
+      
+      if found
+        send(found)
       else
         EmptyBook.new
       end
     end
     
-    def epub?
-      extensions.include? '.epub'
+    def self.registered
+      @__registered
     end
     
-    def epub
-      @epub ||= Epub.new(
-        versions.find {|v| v.extname == '.epub' }
-      )
-    end
+    def self.register(name, klass)
+      ivar = "@__#{name}".to_sym
     
-    def mobi?
-      extensions.include? '.mobi'
+      define_method name do
+        book = self.instance_variable_get(ivar)
+        return book if book
+        
+        self.instance_variable_set ivar, klass.new(
+          versions.find {|v| klass::EXTENSIONS.include? v.extname }
+        )
+      end
+      
+      define_method "#{name}?".to_sym do
+        klass::EXTENSIONS.any? {|ext|
+          extensions.include?(ext)
+        }
+      end
+      
+      registered = self.instance_variable_get(:@__registered) || []
+      self.instance_variable_set(:@__registered, registered << name)
     end
-    
-    def mobi
-      @mobi ||= Mobi.new(
-        versions.find {|v| v.extname == '.mobi' }
-      )
-    end
-    
-    def method_missing(sym, *args, &block)
-      either.send sym, *args, &block
-    end
-    
-    # def chapters
-    # def data
-    # def metadata
-    # def author
-    # def title
+
+    extend Forwardable
+    def_delegators :either, :author, :title
     
     def inspect
       "#<#{self.class} '#{self.title}'>"
     end
     alias_method :to_s, :inspect
     
-    
+    # @abstract Implement {#author}, {#title} and {#extension} and define a list
+    #   of possible {EXTENSIONS}.
     class EmptyBook
+      EXTENSIONS = []
+    
       def initialize(path)
         @path = path.to_s
-      end
-      
-      def data
-        {}
-      end
-      
-      def metadata
-        {}
-      end
-      
-      def chapters
-        []
       end
       
       def author
@@ -98,19 +105,19 @@ module Alexandria
       def extension
         ".missing"
       end
+      
+      def inspect
+        "#<#{self.class} '#{self.title}'>"
+      end
+      alias_method :to_s, :inspect
     end
     
     class Epub < EmptyBook
-      def data
-        @data ||= Peregrin::Epub.read(@path).to_book
-      end
+      EXTENSIONS = ['.epub']
       
       def metadata
-        @meta ||= data.properties.inject({}) {|a,e| a.merge(e.to_h) }
-      end
-      
-      def chapters
-        data.chapters
+        @meta ||= Peregrin::Epub.read(@path).to_book
+                    .properties.inject({}) {|a,e| a.merge(e.to_h) }
       end
       
       def author
@@ -126,18 +133,13 @@ module Alexandria
       end
     end
     
+    register :epub, Epub
+    
     class Mobi < EmptyBook
-      def data
-        # todo...
-        
-      end
+      EXTENSIONS = ['.mobi', '.azw', '.azw3']
       
       def metadata
         ::Mobi.metadata File.open(@path)
-      end
-      
-      def chapters
-        # todo...
       end
       
       def author
@@ -152,6 +154,8 @@ module Alexandria
         ".mobi"
       end
     end
+    
+    register :mobi, Mobi
     
   end
 end
