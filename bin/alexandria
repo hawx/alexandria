@@ -7,6 +7,8 @@ require 'pp'
 
 LIB = Alexandria::Library.new File.expand_path(ENV["ALEXANDRIA_LIBRARY"])
 
+KINDLE = Alexandria::Kindle.find
+
 class Alexandria::CLI < Clive
 
   module Helpers
@@ -14,29 +16,72 @@ class Alexandria::CLI < Clive
       bool ? "✓" : "✗"
     end
   end
-  
+
   command :add, arg: '<book>' do
     action do
-      LIB.add! book
+      LIB.add! Alexandria::Book.create(File.expand_path(book))
     end
   end
-  
+
   command :list do
-    bool :long
-  
+    opt :author, args: '<name>'
+    opt :title, args: '<name>'
+
+    bool :by_author
+    bool :v, :verbose
+
     action do
-      LIB.authors.each do |author, books|
-        puts author.bold
-        
-        books.each do |book|
-          puts "  #{book.title}"
+      criteria = {}
+      criteria[:title] = get(:title) if has?(:title)
+      criteria[:author] = get(:author) if has?(:author)
+
+      books = LIB.find_all(criteria)
+
+      if get(:by_author)
+        books.group_by {|book| book.author }.each do |author, books|
+          puts author.bold
+
+          books.each do |book|
+            puts "  #{book.title}"
+
+            if get(:verbose)
+              puts "  #{book.path}\n".grey
+            end
+          end
         end
-        
-        puts ""
+
+      else
+        books.sort_by(&:title).each do |book|
+          puts "#{book.title.bold} by #{book.author}"
+
+          if get(:verbose)
+            puts "  #{book.path}\n".grey
+          end
+        end
       end
     end
   end
-  
+
+  command :sync do
+    bool :dry_run
+
+    action do
+      return unless KINDLE
+
+      KINDLE.books.each do |book|
+        dest_dir = File.join(LIB.path, book.author, book.title)
+
+        unless LIB.include?(book) || File.exist?(dest_dir)
+          if get(:dry_run)
+            puts "Missing: #{book.title} by #{book.author}"
+          else
+            LIB.add! book
+          end
+        end
+      end
+    end
+  end
+
 end
 
 Clive::Option::Runner.extend Alexandria::CLI::Helpers

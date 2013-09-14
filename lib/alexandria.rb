@@ -9,3 +9,4 @@ EBOOK_CONVERT = ENV['EBOOK_CONVERT'] ||
 
 require_relative 'alexandria/book'
 require_relative 'alexandria/library'
+require_relative 'alexandria/kindle'
