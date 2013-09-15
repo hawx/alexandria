@@ -1,6 +1,7 @@
 require 'pathname'
 
-module Alexandria
+class Alexandria::Device
+
   class Kindle
     def self.find
       return false unless Dir.exist?('/Volumes/Kindle')
@@ -11,10 +12,12 @@ module Alexandria
       @path = Pathname.new(path)
     end
 
-    def books
-      Dir[@path + 'documents' + '**/*.{azw,azw3,mobi}'].map {|path|
-        Book.create File.expand_path(path)
+    def each_book
+      Dir[@path + 'documents' + '**/*.{azw,azw3,mobi}'].each {|path|
+        yield Book.create(File.expand_path(path))
       }
     end
   end
+
+  register :kindle, Kindle
 end

@@ -1,105 +1,30 @@
-# coding: UTF-8
-require 'highline/import'
-
 module Alexandria
+  module Library
+    extend self
 
-  class Library
+    # Adds a book to the current library, then converts it to all possible formats.
+    #
+    # @param path [String] Path to the book to add.
+    def add(path)
+      book = Storage::Book.from_path(File.expand_path(path))
 
-    EXTENSIONS = %w(epub mobi)
+      instance = Dir.glob(book.path + '/*').first
 
-    attr_reader :path
+      extensions_missing = Book.extensions - [File.extname(instance)]
 
-    def initialize(path)
-      @path = Pathname.new(path)
-    end
+      converter = Converter.new(instance)
 
-    def criteria_matcher(criteria)
-      lambda {|book|
-        criteria.all? {|k,v|
-          if v.is_a?(Regexp)
-            book.send(k) =~ v
-          else
-            book.send(k) == v
-          end
-        }
-      }
-    end
-    private :criteria_matcher
-
-    def find_all(criteria={})
-      block = block_given? ? Proc.new : criteria_matcher(criteria)
-
-      books.find_all {|book| block.call(book) }
-    end
-
-    def find(criteria={})
-      block = block_given? ? Proc.new : criteria_matcher(criteria)
-
-      books.find {|book| block.call(book) }
-    end
-
-    def include?(object)
-      case object
-      when Book, Book::EmptyBook
-        ! find_all(author: object.author, title: object.title).empty?
-      when Hash
-        ! find_all(object).empty?
-      else
-        book_path = File.expand_path(object)
-        temp = Book.create(book_path)
-
-        include? Book.create(book_path)
+      extensions_missing.each do |extension|
+        converter.convert_to(extension)
       end
     end
 
-    def add!(book)
-      dir  = File.join(@path, book.author, book.title)
-      dest = File.join(dir, (book.title + book.extension))
-
-      # If it exists, ask to replace
-      # if dest.exist?
-      if File.exist?(dir)
-        return unless agree(" Book '#{book.title}' already exists, replace? [y/n] ".red)
-      end
-
-      puts " moving".grey + " #{book.path}"
-      puts "     to".grey + " #{dest}"
-
-      # Create dirs, and move
-      FileUtils.mkdir_p dir
-      FileUtils.cp book.path, dest
-
-      convert dest
+    def books(criteria={})
+      Storage::Book.all criteria.compact.merge(:order => [:title.asc])
     end
 
-    def convert(book)
-      ext = File.extname(book)[1..-1]
-      needs = EXTENSIONS - [ext]
-      base = book.to_s[0..-ext.size-1]
-
-      needs.each do |new_ext|
-        new_book = base + new_ext
-
-        puts "Converting to #{new_ext}".blue.bold
-
-        if File.exist?(new_book)
-          return unless agree(" Book already converted, convert again? [y/n] ".red)
-        end
-
-        if system "#{EBOOK_CONVERT} \"#{book}\" \"#{new_book}\""
-          puts " created".grey + " #{new_book}"
-        else
-          puts " problem converting".red
-        end
-      end
-    end
-
-    def authors
-      books.group_by(&:author)
-    end
-
-    def books
-      Pathname.glob(@path + '*' + "*").map {|dir| Book.new dir }
+    def authors(criteria={})
+      Storage::Author.all criteria.compact.merge(:order => [:name.asc])
     end
   end
 end

@@ -1,25 +1,21 @@
 #!/usr/bin/env ruby
 # coding: UTF-8
 
-require_relative '../lib/alexandria'
 require 'clive'
 require 'pp'
+require 'data_mapper'
+require 'highline/import'
 
-LIB = Alexandria::Library.new File.expand_path(ENV["ALEXANDRIA_LIBRARY"])
+LIB_ROOT = File.expand_path('./test-library')
+DataMapper.setup(:default, "sqlite://#{LIB_ROOT}/library.db")
 
-KINDLE = Alexandria::Kindle.find
+require_relative '../lib/alexandria'
 
 class Alexandria::CLI < Clive
 
-  module Helpers
-    def check(bool)
-      bool ? "✓" : "✗"
-    end
-  end
-
-  command :add, arg: '<book>' do
+  command :add, arg: '<path>' do
     action do
-      LIB.add! Alexandria::Book.create(File.expand_path(book))
+      ::Alexandria::Library.add(path)
     end
   end
 
@@ -31,32 +27,27 @@ class Alexandria::CLI < Clive
     bool :v, :verbose
 
     action do
-      criteria = {}
-      criteria[:title] = get(:title) if has?(:title)
-      criteria[:author] = get(:author) if has?(:author)
-
-      books = LIB.find_all(criteria)
+      criteria = {
+        title: get(:title),
+        author: {
+          name: get(:author)
+        }
+      }
 
       if get(:by_author)
-        books.group_by {|book| book.author }.each do |author, books|
-          puts author.bold
+        ::Alexandria::Library.authors(criteria[:author]).each do |author|
+          puts author.name.bold
 
-          books.each do |book|
+          author.books.each do |book|
             puts "  #{book.title}"
-
-            if get(:verbose)
-              puts "  #{book.path}\n".grey
-            end
+            puts "    #{book.path}\n".grey if get(:verbose)
           end
         end
 
       else
-        books.sort_by(&:title).each do |book|
-          puts "#{book.title.bold} by #{book.author}"
-
-          if get(:verbose)
-            puts "  #{book.path}\n".grey
-          end
+        ::Alexandria::Library.books(criteria).each do |book|
+          puts "#{book.title.bold} by #{book.author.name}"
+          puts "  #{book.path}\n".grey if get(:verbose)
         end
       end
     end
@@ -66,23 +57,24 @@ class Alexandria::CLI < Clive
     bool :dry_run
 
     action do
-      return unless KINDLE
+      device = ::Alexandria::Device.find
 
-      KINDLE.books.each do |book|
-        dest_dir = File.join(LIB.path, book.author, book.title)
+      unless device
+        puts "Nothing to sync.".red
+        exit
+      end
 
-        unless LIB.include?(book) || File.exist?(dest_dir)
+      device.each_book do |book|
+        unless Book.any?(author: book.author, title: book.title)
           if get(:dry_run)
             puts "Missing: #{book.title} by #{book.author}"
           else
-            LIB.add! book
+            ::Alexandria::Library.add(book)
           end
         end
       end
     end
   end
-
 end
 
-Clive::Option::Runner.extend Alexandria::CLI::Helpers
-a = Alexandria::CLI.run
+Alexandria::CLI.run
