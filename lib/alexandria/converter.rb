@@ -2,7 +2,7 @@ module Alexandria
 
   class Converter
 
-    def initialize(original_path)
+    def initialize(original_path, options={})
       @original_path = original_path
       @book = Book.create(@original_path)
     end
@@ -30,13 +30,22 @@ module Alexandria
         return unless agree("File already exists '#{new_path}', convert again? [y/n]".red)
       end
 
-      puts "Converting '#{@book.title}' to #{new_ext}"
-
-      if system "#{EBOOK_CONVERT} \"#{@original_path}\" \"#{new_path}\""
+      if execute(@original_path, new_path, @options[:quiet])
         puts "  created".grey + " #{new_path}"
       else
-        puts "  problem converting".red
+        puts "  problem".red + " converting #{@original_path} to #{new_ext}"
       end
     end
+
+    private
+
+    def execute(from, to, quiet=true)
+      if quiet
+        `#{EBOOK_CONVERT} \"#{from}\" \"#{to}\"`
+      else
+        system "#{EBOOK_CONVERT} \"#{from}\" \"#{to}\""
+      end
+    end
+
   end
 end

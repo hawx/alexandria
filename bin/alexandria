@@ -1,29 +1,48 @@
 #!/usr/bin/env ruby
-# coding: UTF-8
 
 require 'clive'
 require 'pp'
 require 'data_mapper'
 require 'highline/import'
 
-LIB_ROOT = File.expand_path('./test-library')
+LIB_ROOT = File.expand_path(ENV['ALEXANDRIA_LIBRARY'] || '~/alexandria')
+
+FileUtils.mkdir_p LIB_ROOT
 DataMapper.setup(:default, "sqlite://#{LIB_ROOT}/library.db")
 
 require_relative '../lib/alexandria'
 
 class Alexandria::CLI < Clive
 
-  command :add, arg: '<path>' do
+  desc 'Adds a book to library, converting it to all formats'
+  command :add, arg: '<path>...' do
+    bool :quiet, default: true
+    bool :force, default: false
+
     action do
-      ::Alexandria::Library.add(path)
+      options = {
+        quiet: get(:quiet),
+        force: get(:force)
+      }
+
+      path.each {|book_path|
+        ::Alexandria::Library.add book_path, options
+      }
     end
   end
 
+  desc 'Lists all books in the library'
   command :list do
+    desc 'Show only for author'
     opt :author, args: '<name>'
+
+    desc 'Show only with title'
     opt :title, args: '<name>'
 
+    desc 'List by author'
     bool :by_author
+
+    desc 'Show full output'
     bool :v, :verbose
 
     action do
@@ -53,6 +72,7 @@ class Alexandria::CLI < Clive
     end
   end
 
+  desc 'Syncs books from a connected device to the library'
   command :sync do
     bool :dry_run
 

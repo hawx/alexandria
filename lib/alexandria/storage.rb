@@ -11,23 +11,23 @@ module Alexandria
 
       belongs_to :author
 
-      def self.from_path(path)
+      def self.from_path(path, options={})
         book = ::Alexandria::Book.create(path)
 
         path = ::Alexandria::Helpers.book_path(book.author, book.title)
 
         if found = Book.first(:path => path)
           puts "Book already exists!".red
-          return found
+          return found unless options[:force]
         end
 
         book.write(path)
 
         author = Author.first_or_create(:name => book.author)
-        created = Book.create(:title => book.title, :author => author, :path => path)
+        created = Book.first_or_create(:title => book.title, :author => author, :path => path)
         created.save!
 
-        puts "Wrote #{path}"
+        puts "  created".grey + " #{path}"
 
         created
       end
