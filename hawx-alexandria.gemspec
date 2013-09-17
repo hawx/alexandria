@@ -8,6 +8,7 @@ Gem::Specification.new do |s|
   s.summary      = "A library for your ebooks."
   s.homepage     = "http://github.com/hawx/alexandria"
   s.version      = Alexandria::VERSION
+  s.license      = 'MIT'
 
   s.description  = <<-DESC
     An ebook library manager, with one-way kindle syncing.
