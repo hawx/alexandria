@@ -1,15 +1,14 @@
 package main
 
 import (
+	"github.com/hawx/alexandria/actions"
 	"github.com/hawx/alexandria/assets"
 	"github.com/hawx/alexandria/database"
-	"github.com/hawx/alexandria/epub"
-	"github.com/hawx/alexandria/mobi"
+	"github.com/hawx/alexandria/events"
 	"github.com/hawx/alexandria/models"
+	"github.com/hawx/alexandria/response"
 	"github.com/hawx/alexandria/views"
 
-	"code.google.com/p/go-uuid/uuid"
-	"github.com/antage/eventsource"
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/hawx/phemera/cookie"
@@ -18,44 +17,14 @@ import (
 	"github.com/stvp/go-toml-config"
 
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"log"
-	"mime/multipart"
 	"net/http"
 	"os"
-	"os/exec"
-	"path"
 	"strconv"
-	"time"
 )
-
-const (
-	EPUB = "application/epub+zip"
-	MOBI = "application/x-mobipocket-ebook"
-)
-
-func extension(contentType string) string {
-	switch contentType {
-	case EPUB:
-		return ".epub"
-	case MOBI:
-		return ".mobi"
-	}
-	return ""
-}
-
-func notify(es eventsource.EventSource, event string, data interface{}) error {
-	b, err := json.Marshal(data)
-	if err != nil {
-		return err
-	}
-
-	es.SendEventMessage(string(b), event, "")
-	return nil
-}
 
 var store cookie.Store
 
@@ -91,189 +60,6 @@ func Render(template *mustache.Template, db database.Db) http.Handler {
 	})
 }
 
-func Upload(fileheader *multipart.FileHeader, db database.Db, es eventsource.EventSource) error {
-	file, err := fileheader.Open()
-	defer file.Close()
-
-	if err != nil {
-		return err
-	}
-
-	contentType := fileheader.Header["Content-Type"][0]
-	newBook := models.Book{Id: uuid.New(), Added: time.Now()}
-	editionId := uuid.New()
-	dstPath := path.Join(*bookPath, editionId+extension(contentType))
-
-	dst, err := os.Create(dstPath)
-	if err != nil {
-		return err
-	}
-
-	defer dst.Close()
-
-	if _, err := io.Copy(dst, file); err != nil {
-		return err
-	}
-
-	opened, err := fileheader.Open()
-	if err != nil {
-		return err
-	}
-
-	switch contentType {
-	case EPUB:
-		book, _ := epub.Open(opened)
-		meta, _ := book.Metadata()
-
-		newBook.Title = meta.Title[0]
-		newBook.Author = meta.Creator[0].Value
-		newBook.Editions = models.Editions{
-			{
-				Id:          editionId,
-				Path:        dstPath,
-				ContentType: EPUB,
-				Extension:   extension(EPUB),
-			},
-		}
-
-	case MOBI:
-		book, _ := mobi.Open(opened)
-		meta, _ := book.Metadata()
-
-		newBook.Title = meta.Title
-		newBook.Author = meta.Creator
-		newBook.Editions = models.Editions{
-			{
-				Id:          editionId,
-				Path:        dstPath,
-				ContentType: MOBI,
-				Extension:   extension(MOBI),
-			},
-		}
-
-	default:
-		return errors.New("Format not supported: " + contentType)
-	}
-
-	log.Println("Uploaded")
-	db.Save(newBook)
-	notify(es, "add", DecorateBook(newBook))
-
-	go func(contentType string, book models.Book, db database.Db) {
-		if contentType != EPUB {
-			log.Println("Converting to EPUB")
-			editionId := uuid.New()
-			from := book.Editions[0].Path
-			to := path.Join(*bookPath, editionId+extension(EPUB))
-
-			cmd := exec.Command("ebook-convert", from, to)
-			if err := cmd.Run(); err != nil {
-				log.Println(err)
-				return
-			}
-
-			book.Editions = append(book.Editions, &models.Edition{
-				Id:          editionId,
-				Path:        to,
-				ContentType: EPUB,
-				Extension:   extension(EPUB),
-			})
-		}
-
-		if contentType != MOBI {
-			log.Println("Converting to MOBI")
-			editionId := uuid.New()
-			from := book.Editions[0].Path
-			to := path.Join(*bookPath, editionId+extension(MOBI))
-
-			cmd := exec.Command("ebook-convert", from, to)
-			if err := cmd.Run(); err != nil {
-				log.Println(err)
-				return
-			}
-
-			book.Editions = append(book.Editions, &models.Edition{
-				Id:          editionId,
-				Path:        to,
-				ContentType: MOBI,
-				Extension:   extension(MOBI),
-			})
-		}
-
-		log.Println("Converted")
-		db.Save(book)
-		notify(es, "update", DecorateBook(book))
-	}(contentType, newBook, db)
-
-	return nil
-}
-
-type Href struct {
-	Href string `json:"href"`
-}
-
-type Editions []Edition
-
-type Edition struct {
-	Id    string          `json:"id"`
-	Name  string          `json:"name"`
-	Links map[string]Href `json:"links"`
-}
-
-type Books []Book
-
-type Book struct {
-	Id       string          `json:"id"`
-	Title    string          `json:"title"`
-	Author   string          `json:"author"`
-	Added    string          `json:"added"`
-	Editions Editions        `json:"editions"`
-	Links    map[string]Href `json:"links"`
-}
-
-type Root struct {
-	Books Books `json:"books"`
-}
-
-func DecorateEdition(edition models.Edition) Edition {
-	return Edition{
-	Id:   edition.Id,
-	Name: edition.Extension[1:],
-	Links: map[string]Href{
-			"self": {"/editions/" + edition.Id},
-		},
-	}
-}
-
-func DecorateBook(book models.Book) Book {
-	editions := make([]Edition, len(book.Editions))
-
-	for j, edition := range book.Editions {
-		editions[j] = DecorateEdition(*edition)
-	}
-
-	return Book{
-	Id:       book.Id,
-	Title:    book.Title,
-	Author:   book.Author,
-	Added:    book.Added.Format("2006-01-02"),
-	Editions: editions,
-	Links: map[string]Href{
-			"self": {"/books/" + book.Id},
-		},
-	}
-}
-
-func DecorateBooks(modelBooks models.Books) Root {
-	books := make([]Book, len(modelBooks))
-
-	for i, book := range modelBooks {
-		books[i] = DecorateBook(*book)
-	}
-
-	return Root{books}
-}
-
 func main() {
 	flag.Parse()
 
@@ -286,7 +72,7 @@ func main() {
 	db := database.Open(*dbPath)
 	defer db.Close()
 
-	es := eventsource.New(nil, nil)
+	es := events.New()
 	defer es.Close()
 
 	r := mux.NewRouter()
@@ -297,7 +83,7 @@ func main() {
 		w.Header().Add("Content-Type", "application/json")
 
 		if LoggedIn(r) {
-			json.NewEncoder(w).Encode(DecorateBooks(db.Get()))
+			json.NewEncoder(w).Encode(response.ConvertBooks(db.Get()))
 		} else {
 			fmt.Fprint(w, "{\"books\": []}")
 		}
@@ -346,7 +132,7 @@ func main() {
 		}
 
 		db.Save(book)
-		notify(es, "update", DecorateBook(book)
+		es.Update(book)
 
 		w.Header().Add("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(book)
@@ -367,7 +153,7 @@ func main() {
 		}
 
 		db.Remove(book)
-		notify(es, "delete", struct { Id string `json:"id"` }{ book.Id })
+		es.Delete(book)
 
 		w.WriteHeader(204)
 	})
@@ -416,7 +202,7 @@ func main() {
 
 		files := r.MultipartForm.File["file"]
 		for _, file := range files {
-			if err := Upload(file, db, es); err != nil {
+			if err := actions.Upload(bookPath, file, db, es); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		}
