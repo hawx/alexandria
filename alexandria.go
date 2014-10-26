@@ -9,6 +9,7 @@ import (
 	"github.com/hawx/alexandria/views"
 
 	"code.google.com/p/go-uuid/uuid"
+	"github.com/antage/eventsource"
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/hawx/phemera/cookie"
@@ -38,10 +39,22 @@ const (
 
 func extension(contentType string) string {
 	switch contentType {
-	case EPUB: return ".epub"
-	case MOBI: return ".mobi"
+	case EPUB:
+		return ".epub"
+	case MOBI:
+		return ".mobi"
 	}
 	return ""
+}
+
+func notify(es eventsource.EventSource, event string, data interface{}) error {
+	b, err := json.Marshal(data)
+	if err != nil {
+		return err
+	}
+
+	es.SendEventMessage(string(b), event, "")
+	return nil
 }
 
 var store cookie.Store
@@ -78,7 +91,7 @@ func Render(template *mustache.Template, db database.Db) http.Handler {
 	})
 }
 
-func Upload(fileheader *multipart.FileHeader, db database.Db) error {
+func Upload(fileheader *multipart.FileHeader, db database.Db, es eventsource.EventSource) error {
 	file, err := fileheader.Open()
 	defer file.Close()
 
@@ -89,7 +102,7 @@ func Upload(fileheader *multipart.FileHeader, db database.Db) error {
 	contentType := fileheader.Header["Content-Type"][0]
 	newBook := models.Book{Id: uuid.New(), Added: time.Now()}
 	editionId := uuid.New()
-	dstPath := path.Join(*bookPath, editionId + extension(contentType))
+	dstPath := path.Join(*bookPath, editionId+extension(contentType))
 
 	dst, err := os.Create(dstPath)
 	if err != nil {
@@ -116,10 +129,10 @@ func Upload(fileheader *multipart.FileHeader, db database.Db) error {
 		newBook.Author = meta.Creator[0].Value
 		newBook.Editions = models.Editions{
 			{
-			  Id:          editionId,
-			  Path:        dstPath,
-			  ContentType: EPUB,
-			  Extension:   extension(EPUB),
+				Id:          editionId,
+				Path:        dstPath,
+				ContentType: EPUB,
+				Extension:   extension(EPUB),
 			},
 		}
 
@@ -131,10 +144,10 @@ func Upload(fileheader *multipart.FileHeader, db database.Db) error {
 		newBook.Author = meta.Creator
 		newBook.Editions = models.Editions{
 			{
-			  Id:          editionId,
-			  Path:        dstPath,
-			  ContentType: MOBI,
-			  Extension:   extension(MOBI),
+				Id:          editionId,
+				Path:        dstPath,
+				ContentType: MOBI,
+				Extension:   extension(MOBI),
 			},
 		}
 
@@ -144,13 +157,14 @@ func Upload(fileheader *multipart.FileHeader, db database.Db) error {
 
 	log.Println("Uploaded")
 	db.Save(newBook)
+	notify(es, "add", DecorateBook(newBook))
 
 	go func(contentType string, book models.Book, db database.Db) {
 		if contentType != EPUB {
 			log.Println("Converting to EPUB")
 			editionId := uuid.New()
 			from := book.Editions[0].Path
-			to := path.Join(*bookPath, editionId + extension(EPUB))
+			to := path.Join(*bookPath, editionId+extension(EPUB))
 
 			cmd := exec.Command("ebook-convert", from, to)
 			if err := cmd.Run(); err != nil {
@@ -159,10 +173,10 @@ func Upload(fileheader *multipart.FileHeader, db database.Db) error {
 			}
 
 			book.Editions = append(book.Editions, &models.Edition{
-			  Id: editionId,
-			  Path: to,
-			  ContentType: EPUB,
-			  Extension: extension(EPUB),
+				Id:          editionId,
+				Path:        to,
+				ContentType: EPUB,
+				Extension:   extension(EPUB),
 			})
 		}
 
@@ -170,7 +184,7 @@ func Upload(fileheader *multipart.FileHeader, db database.Db) error {
 			log.Println("Converting to MOBI")
 			editionId := uuid.New()
 			from := book.Editions[0].Path
-			to := path.Join(*bookPath, editionId + extension(MOBI))
+			to := path.Join(*bookPath, editionId+extension(MOBI))
 
 			cmd := exec.Command("ebook-convert", from, to)
 			if err := cmd.Run(); err != nil {
@@ -179,54 +193,26 @@ func Upload(fileheader *multipart.FileHeader, db database.Db) error {
 			}
 
 			book.Editions = append(book.Editions, &models.Edition{
-			  Id: editionId,
-			  Path: to,
-			  ContentType: MOBI,
-			  Extension: extension(MOBI),
+				Id:          editionId,
+				Path:        to,
+				ContentType: MOBI,
+				Extension:   extension(MOBI),
 			})
 		}
 
 		log.Println("Converted")
 		db.Save(book)
+		notify(es, "update", DecorateBook(book))
 	}(contentType, newBook, db)
 
 	return nil
 }
 
-/*
-   def upload(temp_path, content_type)
-    temp_type = Alexandria::Edition.get_type(content_type)
-
-    initial = Library.create_edition(temp_path, temp_type)
-    book = Alexandria::Book.new([initial], initial.meta)
-    Library.add(book)
-
-    notify :add, Representer::Book.new(book)
-
-    Thread.new {
-      missing_types = Alexandria::Edition::TYPES - [temp_type]
-      missing_types.each do |type|
-        begin
-          other_path = "#{initial.path}#{type.extname}"
-          convert initial.path, other_path
-          book << Library.create_edition(other_path, type, false)
-        rescue => err
-          warn "Failed to convert #{initial.path} to #{type}"
-          warn err
-        end
-      end
-
-      Library.update(book)
-      notify :update, Representer::Book.new(book)
-    }
-  end
-*/
-
 type Href struct {
 	Href string `json:"href"`
 }
 
-type Editions []*Edition
+type Editions []Edition
 
 type Edition struct {
 	Id    string          `json:"id"`
@@ -234,7 +220,7 @@ type Edition struct {
 	Links map[string]Href `json:"links"`
 }
 
-type Books []*Book
+type Books []Book
 
 type Book struct {
 	Id       string          `json:"id"`
@@ -249,32 +235,40 @@ type Root struct {
 	Books Books `json:"books"`
 }
 
-func Decorate(modelBooks models.Books) Root {
-	books := make([]*Book, len(modelBooks))
+func DecorateEdition(edition models.Edition) Edition {
+	return Edition{
+	Id:   edition.Id,
+	Name: edition.Extension[1:],
+	Links: map[string]Href{
+			"self": {"/editions/" + edition.Id},
+		},
+	}
+}
+
+func DecorateBook(book models.Book) Book {
+	editions := make([]Edition, len(book.Editions))
+
+	for j, edition := range book.Editions {
+		editions[j] = DecorateEdition(*edition)
+	}
+
+	return Book{
+	Id:       book.Id,
+	Title:    book.Title,
+	Author:   book.Author,
+	Added:    book.Added.Format("2006-01-02"),
+	Editions: editions,
+	Links: map[string]Href{
+			"self": {"/books/" + book.Id},
+		},
+	}
+}
+
+func DecorateBooks(modelBooks models.Books) Root {
+	books := make([]Book, len(modelBooks))
 
 	for i, book := range modelBooks {
-		editions := make([]*Edition, len(book.Editions))
-
-		for j, edition := range book.Editions {
-			editions[j] = &Edition{
-				Id:   edition.Id,
-				Name: edition.Extension[1:],
-				Links: map[string]Href{
-					"self": {"/editions/" + edition.Id},
-				},
-			}
-		}
-
-		books[i] = &Book{
-			Id:       book.Id,
-			Title:    book.Title,
-			Author:   book.Author,
-			Added:    book.Added.Format("2006-01-02"),
-			Editions: editions,
-			Links: map[string]Href{
-				"self": {"/books/" + book.Id},
-			},
-		}
+		books[i] = DecorateBook(*book)
 	}
 
 	return Root{books}
@@ -292,6 +286,9 @@ func main() {
 	db := database.Open(*dbPath)
 	defer db.Close()
 
+	es := eventsource.New(nil, nil)
+	defer es.Close()
+
 	r := mux.NewRouter()
 
 	r.Path("/").Methods("GET").Handler(Render(views.List, db))
@@ -300,7 +297,7 @@ func main() {
 		w.Header().Add("Content-Type", "application/json")
 
 		if LoggedIn(r) {
-			json.NewEncoder(w).Encode(Decorate(db.Get()))
+			json.NewEncoder(w).Encode(DecorateBooks(db.Get()))
 		} else {
 			fmt.Fprint(w, "{\"books\": []}")
 		}
@@ -347,7 +344,9 @@ func main() {
 		if req.Author != "" {
 			book.Author = req.Author
 		}
+
 		db.Save(book)
+		notify(es, "update", DecorateBook(book)
 
 		w.Header().Add("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(book)
@@ -368,6 +367,8 @@ func main() {
 		}
 
 		db.Remove(book)
+		notify(es, "delete", struct { Id string `json:"id"` }{ book.Id })
+
 		w.WriteHeader(204)
 	})
 
@@ -396,7 +397,7 @@ func main() {
 		}
 
 		w.Header().Set("Content-Type", edition.ContentType)
-		w.Header().Set("Content-Disposition", `attachment; filename=`+ book.Slug(edition))
+		w.Header().Set("Content-Disposition", `attachment; filename=`+book.Slug(edition))
 		w.Header().Set("Content-Length", strconv.Itoa(int(stat.Size())))
 		io.Copy(w, file)
 	})
@@ -415,7 +416,7 @@ func main() {
 
 		files := r.MultipartForm.File["file"]
 		for _, file := range files {
-			if err := Upload(file, db); err != nil {
+			if err := Upload(file, db, es); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		}
@@ -425,6 +426,7 @@ func main() {
 	r.Path("/sign-out").Methods("GET").Handler(persona.SignOut(store))
 
 	http.Handle("/", r)
+	http.Handle("/events", es)
 	http.Handle("/assets/", http.StripPrefix("/assets/", assets.Server(map[string]string{
 		"main.js":            assets.Main,
 		"jquery.mustache.js": assets.Mustache,

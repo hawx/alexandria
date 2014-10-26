@@ -188,7 +188,7 @@ function gotAssertion(assertion) {
 };
 
 function connect(rows) {
-  var es = new EventSource('/connect');
+  var es = new EventSource('/events');
 
   es.addEventListener("add", function(e) {
     var obj = JSON.parse(e.data);
@@ -254,4 +254,6 @@ $(function($) {
 
   var rows = new Rows(table);
   rows.render();
+
+  connect(rows);
 });`
