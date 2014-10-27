@@ -202,7 +202,7 @@ func main() {
 
 		files := r.MultipartForm.File["file"]
 		for _, file := range files {
-			if err := actions.Upload(bookPath, file, db, es); err != nil {
+			if err := actions.Upload(*bookPath, file, db, es); err != nil {
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		}

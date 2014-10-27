@@ -34,7 +34,11 @@ func extension(contentType string) string {
 	return ""
 }
 
-func Upload(bookPath *string, fileheader *multipart.FileHeader, db database.Db, es *events.Source) error {
+func editionPath(bookPath, id, contentType string) string {
+	return path.Join(bookPath, id+extension(contentType))
+}
+
+func Upload(bookPath string, fileheader *multipart.FileHeader, db database.Db, es *events.Source) error {
 	file, err := fileheader.Open()
 	defer file.Close()
 
@@ -45,7 +49,7 @@ func Upload(bookPath *string, fileheader *multipart.FileHeader, db database.Db, 
 	contentType := fileheader.Header["Content-Type"][0]
 	newBook := models.Book{Id: uuid.New(), Added: time.Now()}
 	editionId := uuid.New()
-	dstPath := path.Join(*bookPath, editionId+extension(contentType))
+	dstPath := editionPath(bookPath, editionId, contentType)
 
 	dst, err := os.Create(dstPath)
 	if err != nil {
@@ -98,57 +102,63 @@ func Upload(bookPath *string, fileheader *multipart.FileHeader, db database.Db, 
 		return errors.New("Format not supported: " + contentType)
 	}
 
-	log.Println("Uploaded")
 	db.Save(newBook)
 	es.Add(newBook)
 
-	go Convert(bookPath, contentType, newBook, db, es)
+	go convert(bookPath, contentType, newBook, db, es)
 
 	return nil
 }
 
-func Convert(bookPath *string, contentType string, book models.Book, db database.Db, es *events.Source) {
-	if contentType != EPUB {
-		log.Println("Converting to EPUB")
-		editionId := uuid.New()
-		from := book.Editions[0].Path
-		to := path.Join(*bookPath, editionId+extension(EPUB))
-
-		cmd := exec.Command("ebook-convert", from, to)
-		if err := cmd.Run(); err != nil {
-			log.Println(err)
-			return
-		}
-
-		book.Editions = append(book.Editions, &models.Edition{
-			Id:          editionId,
-			Path:        to,
-			ContentType: EPUB,
-			Extension:   extension(EPUB),
-		})
+func convert(bookPath string, contentType string, book models.Book, db database.Db, es *events.Source) {
+	editions, err := convertAll(bookPath, book)
+	if err != nil {
+		log.Println(err)
+		return
 	}
 
-	if contentType != MOBI {
-		log.Println("Converting to MOBI")
-		editionId := uuid.New()
-		from := book.Editions[0].Path
-		to := path.Join(*bookPath, editionId+extension(MOBI))
+	book.Editions = append(book.Editions, editions...)
 
-		cmd := exec.Command("ebook-convert", from, to)
-		if err := cmd.Run(); err != nil {
-			log.Println(err)
-			return
-		}
-
-		book.Editions = append(book.Editions, &models.Edition{
-			Id:          editionId,
-			Path:        to,
-			ContentType: MOBI,
-			Extension:   extension(MOBI),
-		})
-	}
-
-	log.Println("Converted")
 	db.Save(book)
 	es.Update(book)
+}
+
+func convertAll(bookPath string, book models.Book) ([]*models.Edition, error) {
+	editions := []*models.Edition{}
+
+	for _, contentType := range []string{MOBI, EPUB} {
+		edition, err := convertEdition(bookPath, book, contentType)
+		if err != nil {
+			return []*models.Edition{}, err
+		}
+		if edition != nil {
+			editions = append(editions, edition)
+		}
+	}
+
+	return editions, nil
+}
+
+func convertEdition(bookPath string, book models.Book, contentType string) (*models.Edition, error) {
+	for _, edition := range book.Editions {
+		if edition.ContentType == contentType {
+			return nil, nil
+		}
+	}
+
+	editionId := uuid.New()
+	from := book.Editions[0].Path
+	to := editionPath(bookPath, editionId, contentType)
+
+	cmd := exec.Command("ebook-convert", from, to)
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+
+	return &models.Edition{
+		Id:          editionId,
+		Path:        to,
+		ContentType: contentType,
+		Extension:   extension(contentType),
+	}, nil
 }
