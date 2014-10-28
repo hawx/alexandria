@@ -214,11 +214,11 @@ func main() {
 	http.Handle("/", r)
 	http.Handle("/events", es)
 	http.Handle("/assets/", http.StripPrefix("/assets/", assets.Server(map[string]string{
-		"main.js":            assets.Main,
-		"jquery.mustache.js": assets.Mustache,
-		"plugins.js":         assets.Plugins,
-		"tablefilter.js":     assets.Tablefilter,
-		"styles.css":         assets.Styles,
+		"main.js":            assets.MainJs,
+		"mustache.js":        assets.MustacheJs,
+		"tablesorter.js":     assets.TablesorterJs,
+		"tablefilter.js":     assets.TablefilterJs,
+		"styles.css":         assets.StylesCss,
 	})))
 
 	log.Print("Running on :" + *port)

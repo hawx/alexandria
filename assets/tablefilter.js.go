@@ -1,6 +1,6 @@
 package assets
 
-const Tablefilter = `(function($) {
+const TablefilterJs = `(function($) {
   $.tableFilter = function(jq, phrase, ifHidden, tdElem) {
     if (!tdElem) tdElem = "td";
     var new_hidden = false;
@@ -14,6 +14,8 @@ const Tablefilter = `(function($) {
     var noMatch = function(elem) { elem.hide(); new_hidden = true; };
     var getText = function(elem) {
       var extract = function(node) {
+        if (node.childNodes.length != 1) { return ""; }
+
         return node.childNodes[0].nodeName === "#text"
           ? node.childNodes[0].textContent
           : node.childNodes[0].value;
@@ -43,7 +45,7 @@ const Tablefilter = `(function($) {
 
     elems.each(function(){
       var elem = $(this);
-      $.uiTableFilter.has_words(getText(elem), words, false)
+      $.tableFilter.has_words(getText(elem), words, false)
         ? matches(elem)
         : noMatch(elem);
     });

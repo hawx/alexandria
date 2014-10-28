@@ -1,6 +1,6 @@
 package assets
 
-const Main = `var http = (function() {
+const MainJs = `var http = (function() {
   var request = function(method, url, success, error, data) {
     var sendingData = (data !== void 0);
 
@@ -67,9 +67,9 @@ var Row = function(parent, id) {
         "    <a href=\"{{links.self.href}}\">{{name}}</a>" +
         "   {{/editions}}" +
         "</td>" +
-        "<!--<td>" +
+        "<!-- <td>" +
         "  <a href=\"#\" class=\"delete\">delete</a>" +
-        "</td>-->" +
+        "</td> -->" +
         "</tr>",
       editionsTmpl = "{{#editions}}" +
         "  <a href=\"{{links.self.href}}\">{{name}}</a>" +
@@ -161,6 +161,21 @@ var Rows = function(parent) {
     row.add(data);
   };
 
+  this.addTemp = function(name) {
+    var t = "<tr class=\"temp\">" +
+          "  <td>Uploading</td>" +
+          "  <td>" + name + "</td>" +
+          "  <td></td>" +
+          "  <td></td>" +
+          "</tr>";
+
+    parent.append(t);
+  };
+
+  this.removeTemp = function() {
+    parent.find(".temp")[0].remove();
+  };
+
   this.update = function(id, data) {
     _rows[id].update(data);
   };
@@ -175,7 +190,7 @@ function gotAssertion(assertion) {
   if (assertion !== null) {
     $.ajax({
       type: 'POST',
-      url: '/sign-in',
+      url: '/login',
       data: { assertion: assertion },
       success: function(res, status, xhr) {
         window.location.reload();
@@ -191,6 +206,7 @@ function connect(rows) {
   var es = new EventSource('/events');
 
   es.addEventListener("add", function(e) {
+    rows.removeTemp();
     var obj = JSON.parse(e.data);
     rows.add(obj.id, obj);
   }, false);
@@ -206,13 +222,17 @@ function connect(rows) {
   }, false);
 }
 
-function upload(files) {
+function upload(rows, files) {
   var formData = new FormData();
   for (var i = 0; i < files.length; i++) {
+    rows.addTemp(files[i].name);
     formData.append('file', files[i]);
   }
 
-  http.post({url: '/upload', formData: formData});
+  http.post({
+    url: '/upload',
+    formData: formData
+  });
 }
 
 function cancel(fn) {
@@ -232,6 +252,15 @@ $(function($) {
   });
 
   var body = document.body;
+  var table = $('table');
+  var rows = new Rows(table);
+
+  rows.render(function() {
+    table
+      .trigger("update")
+      .trigger("appendCache")
+      .trigger('sortOn', [[1, 0]]);
+  });
 
   document.ondragenter = cancel(function(ev) {
     body.className = 'drag';
@@ -247,13 +276,25 @@ $(function($) {
 
   document.ondrop = cancel(function(ev) {
     body.className = '';
-    upload(ev.dataTransfer.files);
+    upload(rows, ev.dataTransfer.files);
   });
 
-  var table = $('table');
-
-  var rows = new Rows(table);
-  rows.render();
-
   connect(rows);
+
+  $('#filter').keyup(function() {
+    $.tableFilter(table, this.value);
+  });
+
+  table.tablesorter({
+    sortList: [[2,1]],
+    cssAsc: 'ascending',
+    cssDesc: 'descending',
+    textExtraction: function(node) {
+      if (node.childNodes[0].nodeName === "#text") {
+        return node.childNodes[0].textContent;
+      }
+
+      return node.childNodes[0].value;
+    }
+  });
 });`

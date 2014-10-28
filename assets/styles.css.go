@@ -1,6 +1,6 @@
 package assets
 
-const Styles = `body {
+const StylesCss = `body {
     font: 16px/1.3em Helvetica;
     width: 100%;
     margin: 0;

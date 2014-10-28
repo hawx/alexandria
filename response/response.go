@@ -1,12 +1,13 @@
 package response
 
-import "github.com/hawx/alexandria/models"
+import (
+	"github.com/hawx/alexandria/models"
+	"sort"
+)
 
 type Href struct {
 	Href string `json:"href"`
 }
-
-type Editions []Edition
 
 type Edition struct {
 	Id    string          `json:"id"`
@@ -14,7 +15,7 @@ type Edition struct {
 	Links map[string]Href `json:"links"`
 }
 
-type Books []Book
+type Editions []Edition
 
 type Book struct {
 	Id       string          `json:"id"`
@@ -23,6 +24,20 @@ type Book struct {
 	Added    string          `json:"added"`
 	Editions Editions        `json:"editions"`
 	Links    map[string]Href `json:"links"`
+}
+
+type Books []Book
+
+func (books Books) Len() int {
+	return len(books)
+}
+
+func (books Books) Swap(i, j int) {
+	books[i], books[j] = books[j], books[i]
+}
+
+func (books Books) Less(i, j int) bool {
+	return books[i].Added < books[j].Added
 }
 
 type Root struct {
@@ -59,11 +74,12 @@ func ConvertBook(book models.Book) Book {
 }
 
 func ConvertBooks(modelBooks models.Books) Root {
-	books := make([]Book, len(modelBooks))
+	books := Books{}
 
-	for i, book := range modelBooks {
-		books[i] = ConvertBook(*book)
+	for _, book := range modelBooks {
+		books = append(books, ConvertBook(*book))
 	}
 
+	sort.Sort(sort.Reverse(books))
 	return Root{books}
 }
