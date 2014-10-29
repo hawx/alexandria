@@ -1,8 +1,8 @@
 package events
 
 import (
-	"github.com/hawx/alexandria/response"
-	"github.com/hawx/alexandria/models"
+	"github.com/hawx/alexandria/data/models"
+	"github.com/hawx/alexandria/web/response"
 
 	"github.com/antage/eventsource"
 
@@ -31,7 +31,9 @@ func (s *Source) Update(book models.Book) {
 }
 
 func (s *Source) Delete(book models.Book) {
-	s.send("delete", struct { Id string `json:"id"` } { book.Id })
+	s.send("delete", struct {
+		Id string `json:"id"`
+	}{book.Id})
 }
 
 func (s *Source) ServeHTTP(w http.ResponseWriter, r *http.Request) {

@@ -1,10 +1,10 @@
 package handlers
 
 import (
-	"github.com/hawx/alexandria/database"
-	"github.com/hawx/alexandria/events"
-	"github.com/hawx/alexandria/models"
-	"github.com/hawx/alexandria/response"
+	"github.com/hawx/alexandria/data"
+	"github.com/hawx/alexandria/data/models"
+	"github.com/hawx/alexandria/web/events"
+	"github.com/hawx/alexandria/web/response"
 
 	"github.com/gorilla/mux"
 
@@ -12,7 +12,7 @@ import (
 	"net/http"
 )
 
-func Books(db database.Db, es *events.Source) BooksHandler {
+func Books(db data.Db, es *events.Source) BooksHandler {
 	h := booksHandler{db, es}
 
 	return BooksHandler{
@@ -31,7 +31,7 @@ type BooksHandler struct {
 }
 
 type booksHandler struct {
-	db database.Db
+	db data.Db
 	es *events.Source
 }
 

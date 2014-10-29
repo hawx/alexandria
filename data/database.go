@@ -1,11 +1,13 @@
-package database
+package data
 
 import (
-	"github.com/hawx/alexandria/models"
+	"github.com/hawx/alexandria/data/models"
+
 	"github.com/boltdb/bolt"
+
 	"encoding/json"
-	"log"
 	"fmt"
+	"log"
 )
 
 type Db interface {

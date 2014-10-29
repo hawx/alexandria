@@ -1,7 +1,7 @@
 package response
 
 import (
-	"github.com/hawx/alexandria/models"
+	"github.com/hawx/alexandria/data/models"
 	"sort"
 )
 

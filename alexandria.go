@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/hawx/alexandria/assets"
-	"github.com/hawx/alexandria/database"
-	"github.com/hawx/alexandria/events"
-	"github.com/hawx/alexandria/handlers"
-	"github.com/hawx/alexandria/views"
+	"github.com/hawx/alexandria/data"
+	"github.com/hawx/alexandria/web/assets"
+	"github.com/hawx/alexandria/web/events"
+	"github.com/hawx/alexandria/web/handlers"
+	"github.com/hawx/alexandria/web/views"
+	"github.com/hawx/alexandria/web/filters"
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
@@ -37,16 +38,9 @@ func loggedIn(r *http.Request) bool {
 	return store.Get(r) == *user
 }
 
-func Log(handler http.Handler) http.Handler {
+func Render(template *mustache.Template, db data.Db) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("%s %s", r.Method, r.URL)
-		handler.ServeHTTP(w, r)
-	})
-}
-
-func Render(template *mustache.Template, db database.Db) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body := template.Render(struct{ LoggedIn bool }{ loggedIn(r) })
+		body := template.Render(struct{ LoggedIn bool }{loggedIn(r)})
 		w.Header().Add("Content-Type", "text/html")
 		fmt.Fprintf(w, body)
 	})
@@ -62,7 +56,7 @@ func main() {
 	store = cookie.NewStore(*cookieSecret)
 	protect := persona.Protector(store, []string{*user})
 
-	db := database.Open(*dbPath)
+	db := data.Open(*dbPath)
 	defer db.Close()
 
 	es := events.New()
@@ -91,13 +85,13 @@ func main() {
 	http.Handle("/", r)
 	http.Handle("/events", es)
 	http.Handle("/assets/", http.StripPrefix("/assets/", assets.Server(map[string]string{
-		"main.js":            assets.MainJs,
-		"mustache.js":        assets.MustacheJs,
-		"tablesorter.js":     assets.TablesorterJs,
-		"tablefilter.js":     assets.TablefilterJs,
-		"styles.css":         assets.StylesCss,
+		"main.js":        assets.MainJs,
+		"mustache.js":    assets.MustacheJs,
+		"tablesorter.js": assets.TablesorterJs,
+		"tablefilter.js": assets.TablefilterJs,
+		"styles.css":     assets.StylesCss,
 	})))
 
 	log.Print("Running on :" + *port)
-	log.Fatal(http.ListenAndServe(":"+*port, context.ClearHandler(Log(http.DefaultServeMux))))
+	log.Fatal(http.ListenAndServe(":"+*port, context.ClearHandler(filters.Log(http.DefaultServeMux))))
 }

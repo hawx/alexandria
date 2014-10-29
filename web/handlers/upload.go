@@ -1,10 +1,10 @@
 package handlers
 
 import (
-	"github.com/hawx/alexandria/database"
-	"github.com/hawx/alexandria/events"
-	"github.com/hawx/alexandria/format"
-	"github.com/hawx/alexandria/models"
+	"github.com/hawx/alexandria/data"
+	"github.com/hawx/alexandria/data/models"
+	"github.com/hawx/alexandria/metadata"
+	"github.com/hawx/alexandria/web/events"
 
 	"code.google.com/p/go-uuid/uuid"
 
@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-func Upload(db database.Db, es *events.Source, bookPath string) UploadHandler {
+func Upload(db data.Db, es *events.Source, bookPath string) UploadHandler {
 	h := uploadHandler{db, es, bookPath}
 
 	return UploadHandler{
@@ -47,7 +47,7 @@ func extension(contentType string) string {
 }
 
 type uploadHandler struct {
-	db       database.Db
+	db       data.Db
 	es       *events.Source
 	bookPath string
 }
@@ -82,7 +82,6 @@ func (h uploadHandler) doUpload(fileheader *multipart.FileHeader) error {
 	}
 
 	contentType := fileheader.Header["Content-Type"][0]
-	newBook := models.Book{Id: uuid.New(), Added: time.Now(), Title: "Unknown", Author: "Unknown"}
 	editionId := uuid.New()
 	dstPath := h.editionPath(editionId, contentType)
 
@@ -102,37 +101,28 @@ func (h uploadHandler) doUpload(fileheader *multipart.FileHeader) error {
 		return err
 	}
 
-	switch contentType {
-	case EPUB:
-		meta, _ := format.Epub(opened)
-
-		newBook.Title = meta.Title
-		newBook.Author = meta.Author
-		newBook.Editions = models.Editions{
-			{
-				Id:          editionId,
-				Path:        dstPath,
-				ContentType: EPUB,
-				Extension:   extension(EPUB),
-			},
-		}
-
-	case MOBI:
-		meta, _ := format.Mobi(opened)
-
-		newBook.Title = meta.Title
-		newBook.Author = meta.Author
-		newBook.Editions = models.Editions{
-			{
-				Id:          editionId,
-				Path:        dstPath,
-				ContentType: MOBI,
-				Extension:   extension(MOBI),
-			},
-		}
-
-	default:
+	if contentType != MOBI && contentType != EPUB {
 		return errors.New("Format not supported: " + contentType)
+	}
+
+	metaFunc := metadata.Epub
+	if contentType == MOBI {
+		metaFunc = metadata.Mobi
+	}
+
+	meta, _ := metaFunc(opened)
+
+	newBook := models.Book{
+		Id:     uuid.New(),
+		Added:  time.Now(),
+		Title:  meta.Title,
+		Author: meta.Author,
+		Editions: models.Editions{{
+			Id:          editionId,
+			Path:        dstPath,
+			ContentType: contentType,
+			Extension:   extension(contentType),
+		}},
 	}
 
 	h.db.Save(newBook)

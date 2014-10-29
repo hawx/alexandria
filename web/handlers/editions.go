@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/hawx/alexandria/database"
+	"github.com/hawx/alexandria/data"
 
 	"github.com/gorilla/mux"
 
@@ -11,7 +11,7 @@ import (
 	"strconv"
 )
 
-func Editions(db database.Db) EditionsHandler {
+func Editions(db data.Db) EditionsHandler {
 	h := editionsHandler{db}
 
 	return EditionsHandler{
@@ -24,7 +24,7 @@ type EditionsHandler struct {
 }
 
 type editionsHandler struct {
-	db database.Db
+	db data.Db
 }
 
 func (h editionsHandler) Get() http.Handler {

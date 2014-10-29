@@ -1,8 +1,8 @@
-package format
+package metadata
 
 import (
-	"github.com/hawx/alexandria/format/epub"
-	"github.com/hawx/alexandria/format/mobi"
+	"github.com/hawx/alexandria/metadata/epub"
+	"github.com/hawx/alexandria/metadata/mobi"
 
 	"io"
 )
