@@ -1,4 +1,4 @@
-package actions
+package handlers
 
 import (
 	"github.com/hawx/alexandria/database"
@@ -13,6 +13,7 @@ import (
 	"io"
 	"log"
 	"mime/multipart"
+	"net/http"
 	"os"
 	"os/exec"
 	"path"
@@ -34,11 +35,36 @@ func extension(contentType string) string {
 	return ""
 }
 
-func editionPath(bookPath, id, contentType string) string {
-	return path.Join(bookPath, id+extension(contentType))
+func Upload(db database.Db, es *events.Source, bookPath string) uploadHandler {
+	return uploadHandler{db, es, bookPath}
 }
 
-func Upload(bookPath string, fileheader *multipart.FileHeader, db database.Db, es *events.Source) error {
+type uploadHandler struct {
+	db       database.Db
+	es       *events.Source
+	bookPath string
+}
+
+func (h uploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
+	err := r.ParseMultipartForm(100000)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	files := r.MultipartForm.File["file"]
+	for _, file := range files {
+		if err := h.doUpload(file); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+	}
+}
+
+func (h uploadHandler) editionPath(id, contentType string) string {
+	return path.Join(h.bookPath, id+extension(contentType))
+}
+
+func (h uploadHandler) doUpload(fileheader *multipart.FileHeader) error {
 	file, err := fileheader.Open()
 	defer file.Close()
 
@@ -49,7 +75,7 @@ func Upload(bookPath string, fileheader *multipart.FileHeader, db database.Db, e
 	contentType := fileheader.Header["Content-Type"][0]
 	newBook := models.Book{Id: uuid.New(), Added: time.Now()}
 	editionId := uuid.New()
-	dstPath := editionPath(bookPath, editionId, contentType)
+	dstPath := h.editionPath(editionId, contentType)
 
 	dst, err := os.Create(dstPath)
 	if err != nil {
@@ -102,16 +128,16 @@ func Upload(bookPath string, fileheader *multipart.FileHeader, db database.Db, e
 		return errors.New("Format not supported: " + contentType)
 	}
 
-	db.Save(newBook)
-	es.Add(newBook)
+	h.db.Save(newBook)
+	h.es.Add(newBook)
 
-	go convert(bookPath, contentType, newBook, db, es)
+	go h.convert(contentType, newBook)
 
 	return nil
 }
 
-func convert(bookPath string, contentType string, book models.Book, db database.Db, es *events.Source) {
-	editions, err := convertAll(bookPath, book)
+func (h uploadHandler) convert(contentType string, book models.Book) {
+	editions, err := h.convertAll(book)
 	if err != nil {
 		log.Println(err)
 		return
@@ -119,15 +145,15 @@ func convert(bookPath string, contentType string, book models.Book, db database.
 
 	book.Editions = append(book.Editions, editions...)
 
-	db.Save(book)
-	es.Update(book)
+	h.db.Save(book)
+	h.es.Update(book)
 }
 
-func convertAll(bookPath string, book models.Book) ([]*models.Edition, error) {
+func (h uploadHandler) convertAll(book models.Book) ([]*models.Edition, error) {
 	editions := []*models.Edition{}
 
 	for _, contentType := range []string{MOBI, EPUB} {
-		edition, err := convertEdition(bookPath, book, contentType)
+		edition, err := h.convertEdition(book, contentType)
 		if err != nil {
 			return []*models.Edition{}, err
 		}
@@ -139,7 +165,7 @@ func convertAll(bookPath string, book models.Book) ([]*models.Edition, error) {
 	return editions, nil
 }
 
-func convertEdition(bookPath string, book models.Book, contentType string) (*models.Edition, error) {
+func (h uploadHandler) convertEdition(book models.Book, contentType string) (*models.Edition, error) {
 	for _, edition := range book.Editions {
 		if edition.ContentType == contentType {
 			return nil, nil
@@ -148,7 +174,7 @@ func convertEdition(bookPath string, book models.Book, contentType string) (*mod
 
 	editionId := uuid.New()
 	from := book.Editions[0].Path
-	to := editionPath(bookPath, editionId, contentType)
+	to := h.editionPath(editionId, contentType)
 
 	cmd := exec.Command("ebook-convert", from, to)
 	if err := cmd.Run(); err != nil {

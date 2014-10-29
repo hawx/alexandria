@@ -190,7 +190,7 @@ function gotAssertion(assertion) {
   if (assertion !== null) {
     $.ajax({
       type: 'POST',
-      url: '/login',
+      url: '/sign-in',
       data: { assertion: assertion },
       success: function(res, status, xhr) {
         window.location.reload();

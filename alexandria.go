@@ -1,29 +1,23 @@
 package main
 
 import (
-	"github.com/hawx/alexandria/actions"
 	"github.com/hawx/alexandria/assets"
 	"github.com/hawx/alexandria/database"
 	"github.com/hawx/alexandria/events"
-	"github.com/hawx/alexandria/models"
-	"github.com/hawx/alexandria/response"
+	"github.com/hawx/alexandria/handlers"
 	"github.com/hawx/alexandria/views"
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/hawx/phemera/cookie"
-	"github.com/hawx/phemera/persona"
+	"github.com/hawx/wwwhat/persona"
 	"github.com/hoisie/mustache"
 	"github.com/stvp/go-toml-config"
 
-	"encoding/json"
 	"flag"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"os"
-	"strconv"
 )
 
 var store cookie.Store
@@ -68,6 +62,7 @@ func main() {
 	}
 
 	store = cookie.NewStore(*cookieSecret)
+	protect := persona.Protector(store, []string{*user})
 
 	db := database.Open(*dbPath)
 	defer db.Close()
@@ -79,134 +74,20 @@ func main() {
 
 	r.Path("/").Methods("GET").Handler(Render(views.List, db))
 
-	r.Path("/books").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Add("Content-Type", "application/json")
+	booksHandler := handlers.Books(db, es)
 
-		if LoggedIn(r) {
-			json.NewEncoder(w).Encode(response.ConvertBooks(db.Get()))
-		} else {
-			fmt.Fprint(w, "{\"books\": []}")
-		}
-	})
+	r.Path("/books").Methods("GET").Handler(protect(http.HandlerFunc(booksHandler.GetAll)))
+	r.Path("/books/{id}").Methods("GET").Handler(protect(http.HandlerFunc(booksHandler.Get)))
+	r.Path("/books/{id}").Methods("PATCH").Handler(protect(http.HandlerFunc(booksHandler.Update)))
+	r.Path("/books/{id}").Methods("DELETE").Handler(protect(http.HandlerFunc(booksHandler.Delete)))
 
-	r.Path("/books/{id}").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !LoggedIn(r) {
-			w.WriteHeader(403)
-			return
-		}
+	editionsHandler := handlers.Editions(db)
 
-		id := mux.Vars(r)["id"]
-		book, ok := db.Find(id)
+	r.Path("/editions/{id}").Methods("GET").Handler(protect(http.HandlerFunc(editionsHandler.Get)))
 
-		if !ok {
-			w.WriteHeader(404)
-			return
-		}
+	uploadHandler := handlers.Upload(db, es, *bookPath)
 
-		w.Header().Add("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(book)
-	})
-
-	r.Path("/books/{id}").Methods("PATCH").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !LoggedIn(r) {
-			w.WriteHeader(403)
-			return
-		}
-
-		id := mux.Vars(r)["id"]
-		book, ok := db.Find(id)
-
-		if !ok {
-			w.WriteHeader(404)
-			return
-		}
-
-		var req models.Book
-		json.NewDecoder(r.Body).Decode(&req)
-
-		if req.Title != "" {
-			book.Title = req.Title
-		}
-		if req.Author != "" {
-			book.Author = req.Author
-		}
-
-		db.Save(book)
-		es.Update(book)
-
-		w.Header().Add("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(book)
-	})
-
-	r.Path("/books/{id}").Methods("DELETE").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !LoggedIn(r) {
-			w.WriteHeader(403)
-			return
-		}
-
-		id := mux.Vars(r)["id"]
-		book, ok := db.Find(id)
-
-		if !ok {
-			w.WriteHeader(404)
-			return
-		}
-
-		db.Remove(book)
-		es.Delete(book)
-
-		w.WriteHeader(204)
-	})
-
-	r.Path("/editions/{id}").Methods("GET").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !LoggedIn(r) {
-			w.WriteHeader(403)
-			return
-		}
-
-		id := mux.Vars(r)["id"]
-		edition, book, ok := db.FindEdition(id)
-
-		if !ok {
-			w.WriteHeader(404)
-			return
-		}
-
-		file, err := os.Open(edition.Path)
-		if err != nil {
-			w.WriteHeader(500)
-		}
-
-		stat, err := file.Stat()
-		if err != nil {
-			w.WriteHeader(500)
-		}
-
-		w.Header().Set("Content-Type", edition.ContentType)
-		w.Header().Set("Content-Disposition", `attachment; filename=`+book.Slug(edition))
-		w.Header().Set("Content-Length", strconv.Itoa(int(stat.Size())))
-		io.Copy(w, file)
-	})
-
-	r.Path("/upload").Methods("POST").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if !LoggedIn(r) {
-			w.WriteHeader(403)
-			return
-		}
-
-		err := r.ParseMultipartForm(100000)
-		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		files := r.MultipartForm.File["file"]
-		for _, file := range files {
-			if err := actions.Upload(*bookPath, file, db, es); err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
-			}
-		}
-	})
+	r.Path("/upload").Methods("POST").Handler(protect(http.HandlerFunc(uploadHandler.Upload)))
 
 	r.Path("/sign-in").Methods("POST").Handler(persona.SignIn(store, *audience))
 	r.Path("/sign-out").Methods("GET").Handler(persona.SignOut(store))
