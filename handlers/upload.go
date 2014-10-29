@@ -2,9 +2,8 @@ package handlers
 
 import (
 	"github.com/hawx/alexandria/database"
-	"github.com/hawx/alexandria/epub"
 	"github.com/hawx/alexandria/events"
-	"github.com/hawx/alexandria/mobi"
+	"github.com/hawx/alexandria/format"
 	"github.com/hawx/alexandria/models"
 
 	"code.google.com/p/go-uuid/uuid"
@@ -105,11 +104,10 @@ func (h uploadHandler) doUpload(fileheader *multipart.FileHeader) error {
 
 	switch contentType {
 	case EPUB:
-		book, _ := epub.Open(opened)
-		meta, _ := book.Metadata()
+		meta, _ := format.Epub(opened)
 
-		newBook.Title = meta.Title[0]
-		newBook.Author = meta.Creator[0].Value
+		newBook.Title = meta.Title
+		newBook.Author = meta.Author
 		newBook.Editions = models.Editions{
 			{
 				Id:          editionId,
@@ -120,11 +118,10 @@ func (h uploadHandler) doUpload(fileheader *multipart.FileHeader) error {
 		}
 
 	case MOBI:
-		book, _ := mobi.Open(opened)
-		meta, _ := book.Metadata()
+		meta, _ := format.Mobi(opened)
 
 		newBook.Title = meta.Title
-		newBook.Author = meta.Creator
+		newBook.Author = meta.Author
 		newBook.Editions = models.Editions{
 			{
 				Id:          editionId,
