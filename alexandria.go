@@ -33,9 +33,7 @@ var (
 	bookPath     = config.String("books", "./alexandria-books")
 )
 
-type Ctx struct{ LoggedIn bool }
-
-func LoggedIn(r *http.Request) bool {
+func loggedIn(r *http.Request) bool {
 	return store.Get(r) == *user
 }
 
@@ -48,7 +46,7 @@ func Log(handler http.Handler) http.Handler {
 
 func Render(template *mustache.Template, db database.Db) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body := template.Render(Ctx{LoggedIn: LoggedIn(r)})
+		body := template.Render(struct{ LoggedIn bool }{ loggedIn(r) })
 		w.Header().Add("Content-Type", "text/html")
 		fmt.Fprintf(w, body)
 	})
@@ -75,19 +73,17 @@ func main() {
 	r.Path("/").Methods("GET").Handler(Render(views.List, db))
 
 	booksHandler := handlers.Books(db, es)
-
-	r.Path("/books").Methods("GET").Handler(protect(http.HandlerFunc(booksHandler.GetAll)))
-	r.Path("/books/{id}").Methods("GET").Handler(protect(http.HandlerFunc(booksHandler.Get)))
-	r.Path("/books/{id}").Methods("PATCH").Handler(protect(http.HandlerFunc(booksHandler.Update)))
-	r.Path("/books/{id}").Methods("DELETE").Handler(protect(http.HandlerFunc(booksHandler.Delete)))
-
 	editionsHandler := handlers.Editions(db)
-
-	r.Path("/editions/{id}").Methods("GET").Handler(protect(http.HandlerFunc(editionsHandler.Get)))
-
 	uploadHandler := handlers.Upload(db, es, *bookPath)
 
-	r.Path("/upload").Methods("POST").Handler(protect(http.HandlerFunc(uploadHandler.Upload)))
+	r.Path("/books").Methods("GET").Handler(protect(booksHandler.GetAll))
+	r.Path("/books/{id}").Methods("GET").Handler(protect(booksHandler.Get))
+	r.Path("/books/{id}").Methods("PATCH").Handler(protect(booksHandler.Update))
+	r.Path("/books/{id}").Methods("DELETE").Handler(protect(booksHandler.Delete))
+
+	r.Path("/editions/{id}").Methods("GET").Handler(protect(editionsHandler.Get))
+
+	r.Path("/upload").Methods("POST").Handler(protect(uploadHandler.Upload))
 
 	r.Path("/sign-in").Methods("POST").Handler(persona.SignIn(store, *audience))
 	r.Path("/sign-out").Methods("GET").Handler(persona.SignOut(store))

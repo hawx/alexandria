@@ -65,6 +65,9 @@ func (m *mobi) Metadata() (Metadata, error) {
 	}
 
 	binary.Read(p, binary.BigEndian, &header)
+	if string(header.Creator[:]) != "MOBI" || string(header.Type[:]) != "BOOK" {
+		return Metadata{}, errors.New("not a book")
+	}
 
 	// 78: 8 * number of records
 	p.Next(8 * int(header.NumberOfRecords))
@@ -84,8 +87,7 @@ func (m *mobi) Metadata() (Metadata, error) {
 	}
 
 	binary.Read(p, binary.BigEndian, &mobiHeader)
-
-	if string(header.Creator[:]) != "MOBI" || string(header.Type[:]) != "BOOK" {
+	if string(mobiHeader.Identifier[:]) != "MOBI" {
 		return Metadata{}, errors.New("not a book")
 	}
 

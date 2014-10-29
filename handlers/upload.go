@@ -20,6 +20,18 @@ import (
 	"time"
 )
 
+func Upload(db database.Db, es *events.Source, bookPath string) UploadHandler {
+	h := uploadHandler{db, es, bookPath}
+
+	return UploadHandler{
+		Upload: h.Upload(),
+	}
+}
+
+type UploadHandler struct {
+	Upload http.Handler
+}
+
 const (
 	EPUB = "application/epub+zip"
 	MOBI = "application/x-mobipocket-ebook"
@@ -35,29 +47,27 @@ func extension(contentType string) string {
 	return ""
 }
 
-func Upload(db database.Db, es *events.Source, bookPath string) uploadHandler {
-	return uploadHandler{db, es, bookPath}
-}
-
 type uploadHandler struct {
 	db       database.Db
 	es       *events.Source
 	bookPath string
 }
 
-func (h uploadHandler) Upload(w http.ResponseWriter, r *http.Request) {
-	err := r.ParseMultipartForm(100000)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	files := r.MultipartForm.File["file"]
-	for _, file := range files {
-		if err := h.doUpload(file); err != nil {
+func (h uploadHandler) Upload() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		err := r.ParseMultipartForm(100000)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
 		}
-	}
+
+		files := r.MultipartForm.File["file"]
+		for _, file := range files {
+			if err := h.doUpload(file); err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+			}
+		}
+	})
 }
 
 func (h uploadHandler) editionPath(id, contentType string) string {
@@ -73,7 +83,7 @@ func (h uploadHandler) doUpload(fileheader *multipart.FileHeader) error {
 	}
 
 	contentType := fileheader.Header["Content-Type"][0]
-	newBook := models.Book{Id: uuid.New(), Added: time.Now()}
+	newBook := models.Book{Id: uuid.New(), Added: time.Now(), Title: "Unknown", Author: "Unknown"}
 	editionId := uuid.New()
 	dstPath := h.editionPath(editionId, contentType)
 
