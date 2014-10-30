@@ -12,11 +12,11 @@ const list = `
   <body>
     <h1>alexandria</h1>
 
-    {{^LoggedIn}}
+    {{if .}}
       <div id="cover">
         <a id="browserid" href="#" title="Sign-in with Persona">Sign-in</a>
       </div>
-    {{/LoggedIn}}
+    {{end}}
 
     <input id="filter" name="filter" type="text" placeholder="Search" />
 

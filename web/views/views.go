@@ -1,7 +1,5 @@
 package views
 
-import "github.com/hoisie/mustache"
+import "html/template"
 
-var (
-	List, _ = mustache.ParseString(list)
-)
+var List = template.Must(template.New("list").Parse(list))
