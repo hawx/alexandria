@@ -78,10 +78,11 @@ func main() {
 		"styles.css":     assets.StylesCss,
 	})))
 
+	mux := context.ClearHandler(filters.Log(http.DefaultServeMux))
 	if *socket == "" {
 		go func() {
 			log.Print("listening on :" + *port)
-			log.Fatal(http.ListenAndServe(":"+*port, context.ClearHandler(filters.Log(http.DefaultServeMux))))
+			log.Fatal(http.ListenAndServe(":"+*port, mux))
 		}()
 
 	} else {
@@ -94,7 +95,7 @@ func main() {
 
 		go func() {
 			log.Println("listening on", *socket)
-			log.Fatal(http.Serve(l, context.ClearHandler(filters.Log(http.DefaultServeMux))))
+			log.Fatal(http.Serve(l, mux))
 		}()
 	}
 
