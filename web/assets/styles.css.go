@@ -6,7 +6,6 @@ const StylesCss = `body {
     margin: 0;
     padding: 0;
     transition: opacity .1s;
-    overflow: hidden;
 }
 
 body.drag {

@@ -4,15 +4,15 @@ import (
 	"github.com/hawx/alexandria/data"
 	"github.com/hawx/alexandria/web/assets"
 	"github.com/hawx/alexandria/web/events"
-	"github.com/hawx/alexandria/web/handlers"
-	"github.com/hawx/alexandria/web/views"
 	"github.com/hawx/alexandria/web/filters"
+	"github.com/hawx/alexandria/web/handlers"
 	"github.com/hawx/alexandria/web/persona"
+	"github.com/hawx/alexandria/web/views"
 
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
 	"github.com/hoisie/mustache"
-	"github.com/stvp/go-toml-config"
+	"github.com/BurntSushi/toml"
 
 	"flag"
 	"fmt"
@@ -20,26 +20,24 @@ import (
 	"net/http"
 )
 
+type config struct {
+	Users     []string
+	Secret    string
+	Audience  string
+	DbPath    string `toml:"database"`
+	BooksPath string `toml:"library"`
+}
+
 var store persona.Store
 
 var (
 	settingsPath = flag.String("settings", "./settings.toml", "")
 	port         = flag.String("port", "8080", "")
-
-	user         = config.String("user", "someone@example.com")
-	cookieSecret = config.String("secret", "some-secret-plz-change")
-	audience     = config.String("audience", "localhost")
-	dbPath       = config.String("db", "./alexandria-db")
-	bookPath     = config.String("books", "./alexandria-books")
 )
-
-func loggedIn(r *http.Request) bool {
-	return store.Get(r) == *user
-}
 
 func Render(template *mustache.Template) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		body := template.Render(struct{ LoggedIn bool }{loggedIn(r)})
+		body := template.Render(struct{ LoggedIn bool }{true})
 		w.Header().Add("Content-Type", "text/html")
 		fmt.Fprintf(w, body)
 	})
@@ -48,14 +46,15 @@ func Render(template *mustache.Template) http.Handler {
 func main() {
 	flag.Parse()
 
-	if err := config.Parse(*settingsPath); err != nil {
+	var conf config
+	if _, err := toml.DecodeFile(*settingsPath, &conf); err != nil {
 		log.Fatal("toml:", err)
 	}
 
-	store = persona.NewStore(*cookieSecret)
-	persona := persona.New(store, *audience, []string{*user})
+	store = persona.NewStore(conf.Secret)
+	persona := persona.New(store, conf.Audience, conf.Users)
 
-	db := data.Open(*dbPath)
+	db := data.Open(conf.DbPath)
 	defer db.Close()
 
 	es := events.New()
@@ -67,7 +66,7 @@ func main() {
 
 	booksHandler := handlers.Books(db, es)
 	editionsHandler := handlers.Editions(db)
-	uploadHandler := handlers.Upload(db, es, *bookPath)
+	uploadHandler := handlers.Upload(db, es, conf.BooksPath)
 
 	r.Path("/books").Methods("GET").Handler(persona.Protect(booksHandler.GetAll))
 	r.Path("/books/{id}").Methods("GET").Handler(persona.Protect(booksHandler.Get))

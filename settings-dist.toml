@@ -1,0 +1,5 @@
+users = ["john.doe@example.com", "jane.doe@example.net"]
+secret = "plzchange 32 or 64 bytes is best"
+audience = "localhost"
+database = "./alexandria-db"
+library = "./alexandria-books"
