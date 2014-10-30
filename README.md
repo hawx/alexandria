@@ -13,7 +13,6 @@ secret = "some 32 or 64 byte string"
 audience = "hostname and port of place this will be"
 database = "./some-db-path"
 library = "./some-dir-for-the-books"
-^D
 $ mkdir some-dir-for-the-books
 $ alexandria
 ...
