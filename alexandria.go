@@ -6,18 +6,16 @@ import (
 	"github.com/hawx/alexandria/web/events"
 	"github.com/hawx/alexandria/web/filters"
 	"github.com/hawx/alexandria/web/handlers"
-	"github.com/hawx/alexandria/web/persona"
 
 	"github.com/BurntSushi/toml"
 	"github.com/gorilla/context"
 	"github.com/gorilla/mux"
+	"github.com/hawx/persona"
+	"github.com/hawx/serve"
 
 	"flag"
 	"log"
-	"net"
 	"net/http"
-	"os"
-	"os/signal"
 )
 
 var (
@@ -78,30 +76,5 @@ func main() {
 		"styles.css":     assets.StylesCss,
 	})))
 
-	mux := context.ClearHandler(filters.Log(http.DefaultServeMux))
-	if *socket == "" {
-		go func() {
-			log.Print("listening on :" + *port)
-			log.Fatal(http.ListenAndServe(":"+*port, mux))
-		}()
-
-	} else {
-		l, err := net.Listen("unix", *socket)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		defer l.Close()
-
-		go func() {
-			log.Println("listening on", *socket)
-			log.Fatal(http.Serve(l, mux))
-		}()
-	}
-
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt, os.Kill)
-
-	s := <-c
-	log.Printf("caught %s: shutting down", s)
+	serve.Serve(*port, *socket, context.ClearHandler(filters.Log(http.DefaultServeMux)))
 }
