@@ -47,7 +47,7 @@ type Root struct {
 func ConvertEdition(edition models.Edition) Edition {
 	return Edition{
 		Id:   edition.Id,
-		Name: edition.Extension[1:],
+		Name: edition.Extension()[1:],
 		Links: map[string]Href{
 			"self": {"/editions/" + edition.Id},
 		},

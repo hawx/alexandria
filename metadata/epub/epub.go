@@ -62,7 +62,7 @@ func (e *epub) getRoot() (string, error) {
 
 	var c struct {
 		XmlName   xml.Name `xml:"container"`
-		Rootfiles struct{
+		Rootfiles struct {
 			FullPath string `xml:"full-path,attr"`
 		} `xml:"rootfiles>rootfile"`
 	}

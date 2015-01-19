@@ -1,16 +1,16 @@
 package persona
 
 import (
-	"net/http"
 	"log"
+	"net/http"
 )
 
 func New(store emailStore, audience string, users []string) PersonaHandlers {
 	return PersonaHandlers{
-	  SignIn:  signInHandler{store, audience},
-    SignOut: signOutHandler{store},
-    Protect: protectFilter{store, users}.Apply,
-	  Switch:  switchBranch{store, users}.Apply,
+		SignIn:  signInHandler{store, audience},
+		SignOut: signOutHandler{store},
+		Protect: protectFilter{store, users}.Apply,
+		Switch:  switchBranch{store, users}.Apply,
 	}
 }
 
@@ -18,10 +18,10 @@ type Filter func(http.Handler) http.Handler
 type Branch func(http.Handler, http.Handler) http.Handler
 
 type PersonaHandlers struct {
-	SignIn   http.Handler
-	SignOut  http.Handler
-	Protect  Filter
-	Switch   Branch
+	SignIn  http.Handler
+	SignOut http.Handler
+	Protect Filter
+	Switch  Branch
 }
 
 func isSignedIn(toCheck string, users []string) bool {

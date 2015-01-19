@@ -5,25 +5,42 @@ import (
 	"time"
 )
 
+const (
+	EPUB = "application/epub+zip"
+	MOBI = "application/x-mobipocket-ebook"
+)
+
 type Editions []*Edition
 
 type Edition struct {
-	Id          string  `json:"id"`
-	Path        string  `json:"path"`
-	ContentType string  `json:"content-type"`
-	Extension   string  `json:"extension"`
+	Id          string `json:"id"`
+	ContentType string `json:"content-type"`
+}
+
+func (e Edition) Extension() string {
+	switch e.ContentType {
+	case EPUB:
+		return ".epub"
+	case MOBI:
+		return ".mobi"
+	}
+	return ""
+}
+
+func (e Edition) Path() string {
+	return e.Id + e.Extension()
 }
 
 type Books []*Book
 
 type Book struct {
-	Id       string     `json:"id"`
-	Title    string     `json:"title"`
-	Author   string     `json:"author"`
-	Added    time.Time  `json:"added"`
-  Editions Editions   `json:"editions"`
+	Id       string    `json:"id"`
+	Title    string    `json:"title"`
+	Author   string    `json:"author"`
+	Added    time.Time `json:"added"`
+	Editions Editions  `json:"editions"`
 }
 
 func (b Book) Slug(edition *Edition) string {
-	return url.QueryEscape(b.Title + edition.Extension)
+	return url.QueryEscape(b.Title + edition.Extension())
 }

@@ -6,16 +6,18 @@ import (
 	"github.com/gorilla/mux"
 
 	"io"
+	"log"
 	"net/http"
 	"os"
+	"path"
 	"strconv"
 )
 
-func Editions(db data.Db) EditionsHandler {
-	h := editionsHandler{db}
+func Editions(db data.Db, bookPath string) EditionsHandler {
+	h := editionsHandler{db, bookPath}
 
 	return EditionsHandler{
-	  Get: h.Get(),
+		Get: h.Get(),
 	}
 }
 
@@ -24,7 +26,8 @@ type EditionsHandler struct {
 }
 
 type editionsHandler struct {
-	db data.Db
+	db       data.Db
+	bookPath string
 }
 
 func (h editionsHandler) Get() http.Handler {
@@ -37,14 +40,18 @@ func (h editionsHandler) Get() http.Handler {
 			return
 		}
 
-		file, err := os.Open(edition.Path)
+		file, err := os.Open(path.Join(h.bookPath, edition.Path()))
 		if err != nil {
+			log.Println(err)
 			w.WriteHeader(500)
+			return
 		}
 
 		stat, err := file.Stat()
 		if err != nil {
+			log.Println(err)
 			w.WriteHeader(500)
+			return
 		}
 
 		w.Header().Set("Content-Type", edition.ContentType)

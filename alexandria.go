@@ -57,7 +57,7 @@ func main() {
 	r.Path("/books/{id}").Methods("PATCH").Handler(persona.Protect(booksHandler.Update))
 	r.Path("/books/{id}").Methods("DELETE").Handler(persona.Protect(booksHandler.Delete))
 
-	editionsHandler := handlers.Editions(db)
+	editionsHandler := handlers.Editions(db, conf.BooksPath)
 	r.Path("/editions/{id}").Methods("GET").Handler(persona.Protect(editionsHandler.Get))
 
 	uploadHandler := handlers.Upload(db, es, conf.BooksPath)

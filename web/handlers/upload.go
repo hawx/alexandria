@@ -31,21 +31,6 @@ type UploadHandler struct {
 	Upload http.Handler
 }
 
-const (
-	EPUB = "application/epub+zip"
-	MOBI = "application/x-mobipocket-ebook"
-)
-
-func extension(contentType string) string {
-	switch contentType {
-	case EPUB:
-		return ".epub"
-	case MOBI:
-		return ".mobi"
-	}
-	return ""
-}
-
 type uploadHandler struct {
 	db       data.Db
 	es       *events.Source
@@ -69,10 +54,6 @@ func (h uploadHandler) Upload() http.Handler {
 	})
 }
 
-func (h uploadHandler) editionPath(id, contentType string) string {
-	return path.Join(h.bookPath, id+extension(contentType))
-}
-
 func (h uploadHandler) doUpload(fileheader *multipart.FileHeader) error {
 	file, err := fileheader.Open()
 	defer file.Close()
@@ -82,8 +63,13 @@ func (h uploadHandler) doUpload(fileheader *multipart.FileHeader) error {
 	}
 
 	contentType := fileheader.Header["Content-Type"][0]
-	editionId := uuid.New()
-	dstPath := h.editionPath(editionId, contentType)
+
+	edition := &models.Edition{
+		Id:          uuid.New(),
+		ContentType: contentType,
+	}
+
+	dstPath := path.Join(h.bookPath, edition.Path())
 
 	dst, err := os.Create(dstPath)
 	if err != nil {
@@ -101,28 +87,23 @@ func (h uploadHandler) doUpload(fileheader *multipart.FileHeader) error {
 		return err
 	}
 
-	if contentType != MOBI && contentType != EPUB {
+	if contentType != models.MOBI && contentType != models.EPUB {
 		return errors.New("Format not supported: " + contentType)
 	}
 
 	metaFunc := metadata.Epub
-	if contentType == MOBI {
+	if contentType == models.MOBI {
 		metaFunc = metadata.Mobi
 	}
 
 	meta, _ := metaFunc(opened)
 
 	newBook := models.Book{
-		Id:     uuid.New(),
-		Added:  time.Now(),
-		Title:  meta.Title,
-		Author: meta.Author,
-		Editions: models.Editions{{
-			Id:          editionId,
-			Path:        dstPath,
-			ContentType: contentType,
-			Extension:   extension(contentType),
-		}},
+		Id:       uuid.New(),
+		Added:    time.Now(),
+		Title:    meta.Title,
+		Author:   meta.Author,
+		Editions: models.Editions{edition},
 	}
 
 	h.db.Save(newBook)
@@ -149,7 +130,7 @@ func (h uploadHandler) convert(contentType string, book models.Book) {
 func (h uploadHandler) convertAll(book models.Book) ([]*models.Edition, error) {
 	editions := []*models.Edition{}
 
-	for _, contentType := range []string{MOBI, EPUB} {
+	for _, contentType := range []string{models.MOBI, models.EPUB} {
 		edition, err := h.convertEdition(book, contentType)
 		if err != nil {
 			return []*models.Edition{}, err
@@ -169,19 +150,18 @@ func (h uploadHandler) convertEdition(book models.Book, contentType string) (*mo
 		}
 	}
 
-	editionId := uuid.New()
-	from := book.Editions[0].Path
-	to := h.editionPath(editionId, contentType)
+	edition := &models.Edition{
+		Id:          uuid.New(),
+		ContentType: contentType,
+	}
+
+	from := path.Join(h.bookPath, book.Editions[0].Path())
+	to := path.Join(h.bookPath, edition.Path())
 
 	cmd := exec.Command("ebook-convert", from, to)
 	if err := cmd.Run(); err != nil {
 		return nil, err
 	}
 
-	return &models.Edition{
-		Id:          editionId,
-		Path:        to,
-		ContentType: contentType,
-		Extension:   extension(contentType),
-	}, nil
+	return edition, nil
 }
