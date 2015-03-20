@@ -1,28 +1,24 @@
 package handlers
 
 import (
-	"github.com/hawx/alexandria/data"
-
-	"github.com/gorilla/mux"
-
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"path"
 	"strconv"
+
+	"github.com/hawx/alexandria/data"
+	"github.com/hawx/mux"
+	"github.com/hawx/route"
 )
 
-func Editions(db data.Db, bookPath string) EditionsHandler {
+func Editions(db data.Db, bookPath string) http.Handler {
 	h := editionsHandler{db, bookPath}
 
-	return EditionsHandler{
-		Get: h.Get(),
+	return mux.Method{
+		"GET": h.Get(),
 	}
-}
-
-type EditionsHandler struct {
-	Get http.Handler
 }
 
 type editionsHandler struct {
@@ -32,7 +28,7 @@ type editionsHandler struct {
 
 func (h editionsHandler) Get() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id := mux.Vars(r)["id"]
+		id := route.Vars(r)["id"]
 		edition, book, ok := h.db.FindEdition(id)
 
 		if !ok {

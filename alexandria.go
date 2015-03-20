@@ -8,9 +8,9 @@ import (
 	"github.com/hawx/alexandria/web/handlers"
 
 	"github.com/BurntSushi/toml"
-	"github.com/gorilla/context"
-	"github.com/gorilla/mux"
+	"github.com/hawx/mux"
 	"github.com/hawx/persona"
+	"github.com/hawx/route"
 	"github.com/hawx/serve"
 
 	"flag"
@@ -47,28 +47,16 @@ func main() {
 	es := events.New()
 	defer es.Close()
 
-	r := mux.NewRouter()
+	route.Handle("/", mux.Method{"GET": persona.Switch(handlers.List(true), handlers.List(false))})
+	route.Handle("/books", persona.Protect(handlers.AllBooks(db, es)))
+	route.Handle("/books/:id", persona.Protect(handlers.Books(db, es)))
+	route.Handle("/editions/:id", persona.Protect(handlers.Editions(db, conf.BooksPath)))
+	route.Handle("/upload", persona.Protect(handlers.Upload(db, es, conf.BooksPath)))
 
-	r.Path("/").Methods("GET").Handler(persona.Switch(handlers.List(true), handlers.List(false)))
-
-	booksHandler := handlers.Books(db, es)
-	r.Path("/books").Methods("GET").Handler(persona.Protect(booksHandler.GetAll))
-	r.Path("/books/{id}").Methods("GET").Handler(persona.Protect(booksHandler.Get))
-	r.Path("/books/{id}").Methods("PATCH").Handler(persona.Protect(booksHandler.Update))
-	r.Path("/books/{id}").Methods("DELETE").Handler(persona.Protect(booksHandler.Delete))
-
-	editionsHandler := handlers.Editions(db, conf.BooksPath)
-	r.Path("/editions/{id}").Methods("GET").Handler(persona.Protect(editionsHandler.Get))
-
-	uploadHandler := handlers.Upload(db, es, conf.BooksPath)
-	r.Path("/upload").Methods("POST").Handler(persona.Protect(uploadHandler.Upload))
-
-	r.Path("/sign-in").Methods("POST").Handler(persona.SignIn)
-	r.Path("/sign-out").Methods("GET").Handler(persona.SignOut)
-
-	http.Handle("/", r)
-	http.Handle("/events", es)
-	http.Handle("/assets/", http.StripPrefix("/assets/", assets.Server(map[string]string{
+	route.Handle("/sign-in", mux.Method{"POST": persona.SignIn})
+	route.Handle("/sign-out", mux.Method{"GET": persona.SignOut})
+	route.Handle("/events", es)
+	route.Handle("/assets/*filepath", http.StripPrefix("/assets/", assets.Server(map[string]string{
 		"main.js":        assets.MainJs,
 		"mustache.js":    assets.MustacheJs,
 		"tablesorter.js": assets.TablesorterJs,
@@ -76,5 +64,5 @@ func main() {
 		"styles.css":     assets.StylesCss,
 	})))
 
-	serve.Serve(*port, *socket, context.ClearHandler(filters.Log(http.DefaultServeMux)))
+	serve.Serve(*port, *socket, filters.Log(route.Default))
 }

@@ -5,29 +5,28 @@ import (
 	"github.com/hawx/alexandria/data/models"
 	"github.com/hawx/alexandria/web/events"
 	"github.com/hawx/alexandria/web/response"
+	"github.com/hawx/route"
 
-	"github.com/gorilla/mux"
+	"github.com/hawx/mux"
 
 	"encoding/json"
 	"net/http"
 )
 
-func Books(db data.Db, es *events.Source) BooksHandler {
-	h := booksHandler{db, es}
-
-	return BooksHandler{
-		GetAll: h.GetAll(),
-		Get:    h.Get(),
-		Update: h.Update(),
-		Delete: h.Delete(),
+func AllBooks(db data.Db, es *events.Source) http.Handler {
+	return mux.Method{
+		"GET": booksHandler{db, es}.GetAll(),
 	}
 }
 
-type BooksHandler struct {
-	GetAll http.Handler
-	Get    http.Handler
-	Update http.Handler
-	Delete http.Handler
+func Books(db data.Db, es *events.Source) http.Handler {
+	h := booksHandler{db, es}
+
+	return mux.Method{
+		"GET":    h.Get(),
+		"PATCH":  h.Update(),
+		"DELETE": h.Delete(),
+	}
 }
 
 type booksHandler struct {
@@ -44,7 +43,7 @@ func (h booksHandler) GetAll() http.Handler {
 
 func (h booksHandler) Get() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id := mux.Vars(r)["id"]
+		id := route.Vars(r)["id"]
 		book, ok := h.db.Find(id)
 
 		if !ok {
@@ -59,7 +58,7 @@ func (h booksHandler) Get() http.Handler {
 
 func (h booksHandler) Update() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id := mux.Vars(r)["id"]
+		id := route.Vars(r)["id"]
 		book, ok := h.db.Find(id)
 
 		if !ok {
@@ -87,7 +86,7 @@ func (h booksHandler) Update() http.Handler {
 
 func (h booksHandler) Delete() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		id := mux.Vars(r)["id"]
+		id := route.Vars(r)["id"]
 		book, ok := h.db.Find(id)
 
 		if !ok {

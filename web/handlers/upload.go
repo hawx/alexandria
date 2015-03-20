@@ -5,6 +5,7 @@ import (
 	"github.com/hawx/alexandria/data/models"
 	"github.com/hawx/alexandria/metadata"
 	"github.com/hawx/alexandria/web/events"
+	"github.com/hawx/mux"
 
 	"code.google.com/p/go-uuid/uuid"
 
@@ -19,16 +20,12 @@ import (
 	"time"
 )
 
-func Upload(db data.Db, es *events.Source, bookPath string) UploadHandler {
+func Upload(db data.Db, es *events.Source, bookPath string) http.Handler {
 	h := uploadHandler{db, es, bookPath}
 
-	return UploadHandler{
-		Upload: h.Upload(),
+	return mux.Method{
+		"POST": h.Upload(),
 	}
-}
-
-type UploadHandler struct {
-	Upload http.Handler
 }
 
 type uploadHandler struct {
