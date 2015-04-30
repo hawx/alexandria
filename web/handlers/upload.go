@@ -1,11 +1,11 @@
 package handlers
 
 import (
-	"github.com/hawx/alexandria/data"
-	"github.com/hawx/alexandria/data/models"
-	"github.com/hawx/alexandria/metadata"
-	"github.com/hawx/alexandria/web/events"
-	"github.com/hawx/mux"
+	"hawx.me/code/alexandria/data"
+	"hawx.me/code/alexandria/data/models"
+	"hawx.me/code/alexandria/metadata"
+	"hawx.me/code/alexandria/web/events"
+	"hawx.me/code/mux"
 
 	"code.google.com/p/go-uuid/uuid"
 

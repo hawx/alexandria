@@ -1,17 +1,17 @@
 package main
 
 import (
-	"github.com/hawx/alexandria/data"
-	"github.com/hawx/alexandria/web/assets"
-	"github.com/hawx/alexandria/web/events"
-	"github.com/hawx/alexandria/web/filters"
-	"github.com/hawx/alexandria/web/handlers"
+	"hawx.me/code/alexandria/data"
+	"hawx.me/code/alexandria/web/assets"
+	"hawx.me/code/alexandria/web/events"
+	"hawx.me/code/alexandria/web/filters"
+	"hawx.me/code/alexandria/web/handlers"
 
 	"github.com/BurntSushi/toml"
-	"github.com/hawx/mux"
 	"github.com/hawx/persona"
-	"github.com/hawx/route"
 	"github.com/hawx/serve"
+	"hawx.me/code/mux"
+	"hawx.me/code/route"
 
 	"flag"
 	"log"

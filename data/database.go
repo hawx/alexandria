@@ -1,7 +1,7 @@
 package data
 
 import (
-	"github.com/hawx/alexandria/data/models"
+	"hawx.me/code/alexandria/data/models"
 
 	"github.com/boltdb/bolt"
 

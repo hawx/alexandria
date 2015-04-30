@@ -1,8 +1,8 @@
 package metadata
 
 import (
-	"github.com/hawx/alexandria/metadata/epub"
-	"github.com/hawx/alexandria/metadata/mobi"
+	"hawx.me/code/alexandria/metadata/epub"
+	"hawx.me/code/alexandria/metadata/mobi"
 
 	"io"
 )

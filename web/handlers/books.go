@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"github.com/hawx/alexandria/data"
-	"github.com/hawx/alexandria/data/models"
-	"github.com/hawx/alexandria/web/events"
-	"github.com/hawx/alexandria/web/response"
-	"github.com/hawx/route"
+	"hawx.me/code/alexandria/data"
+	"hawx.me/code/alexandria/data/models"
+	"hawx.me/code/alexandria/web/events"
+	"hawx.me/code/alexandria/web/response"
+	"hawx.me/code/route"
 
-	"github.com/hawx/mux"
+	"hawx.me/code/mux"
 
 	"encoding/json"
 	"net/http"

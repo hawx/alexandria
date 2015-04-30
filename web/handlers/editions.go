@@ -8,9 +8,9 @@ import (
 	"path"
 	"strconv"
 
-	"github.com/hawx/alexandria/data"
-	"github.com/hawx/mux"
-	"github.com/hawx/route"
+	"hawx.me/code/alexandria/data"
+	"hawx.me/code/mux"
+	"hawx.me/code/route"
 )
 
 func Editions(db data.Db, bookPath string) http.Handler {

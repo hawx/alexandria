@@ -1,8 +1,8 @@
 package events
 
 import (
-	"github.com/hawx/alexandria/data/models"
-	"github.com/hawx/alexandria/web/response"
+	"hawx.me/code/alexandria/data/models"
+	"hawx.me/code/alexandria/web/response"
 
 	"github.com/antage/eventsource"
 

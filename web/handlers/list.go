@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"github.com/hawx/alexandria/web/views"
+	"hawx.me/code/alexandria/web/views"
 
 	"net/http"
 )

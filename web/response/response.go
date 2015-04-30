@@ -1,8 +1,9 @@
 package response
 
 import (
-	"github.com/hawx/alexandria/data/models"
 	"sort"
+
+	"hawx.me/code/alexandria/data/models"
 )
 
 type Href struct {
