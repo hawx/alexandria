@@ -8,10 +8,10 @@ import (
 	"hawx.me/code/alexandria/web/handlers"
 
 	"github.com/BurntSushi/toml"
-	"github.com/hawx/persona"
-	"github.com/hawx/serve"
 	"hawx.me/code/mux"
+	"hawx.me/code/persona"
 	"hawx.me/code/route"
+	"hawx.me/code/serve"
 
 	"flag"
 	"log"
