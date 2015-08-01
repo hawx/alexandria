@@ -118,7 +118,11 @@ func (m *mobi) Metadata() (Metadata, error) {
 		for i := 0; i < len(exthRecords); i++ {
 			binary.Read(p, binary.BigEndian, &exthRecords[i].Type)
 			binary.Read(p, binary.BigEndian, &exthRecords[i].Length)
-			exthRecords[i].Data = make([]byte, exthRecords[i].Length-8)
+			recordLength := exthRecords[i].Length
+			if exthRecords[i].Length > 8 {
+				recordLength -= 8
+			}
+			exthRecords[i].Data = make([]byte, recordLength)
 			binary.Read(p, binary.BigEndian, &exthRecords[i].Data)
 		}
 
