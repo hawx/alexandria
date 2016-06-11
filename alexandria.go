@@ -9,9 +9,9 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"hawx.me/code/mux"
-	"hawx.me/code/persona"
 	"hawx.me/code/route"
 	"hawx.me/code/serve"
+	"hawx.me/code/uberich"
 
 	"flag"
 	"log"
@@ -28,18 +28,22 @@ func main() {
 	flag.Parse()
 
 	var conf struct {
-		Users     []string
 		Secret    string
-		Audience  string
 		DbPath    string `toml:"database"`
 		BooksPath string `toml:"library"`
+		Uberich   struct {
+			AppName    string
+			AppURL     string
+			UberichURL string
+			Secret     string
+		}
 	}
 	if _, err := toml.DecodeFile(*settingsPath, &conf); err != nil {
 		log.Fatal("toml:", err)
 	}
 
-	store := persona.NewStore(conf.Secret)
-	persona := persona.New(store, conf.Audience, conf.Users)
+	store := uberich.NewStore(conf.Secret)
+	uberich := uberich.NewClient(conf.Uberich.AppName, conf.Uberich.AppURL, conf.Uberich.UberichURL, conf.Uberich.Secret, store)
 
 	db := data.Open(conf.DbPath)
 	defer db.Close()
@@ -47,14 +51,18 @@ func main() {
 	es := events.New()
 	defer es.Close()
 
-	route.Handle("/", mux.Method{"GET": persona.Switch(handlers.List(true), handlers.List(false))})
-	route.Handle("/books", persona.Protect(handlers.AllBooks(db, es)))
-	route.Handle("/books/:id", persona.Protect(handlers.Books(db, es)))
-	route.Handle("/editions/:id", persona.Protect(handlers.Editions(db, conf.BooksPath)))
-	route.Handle("/upload", persona.Protect(handlers.Upload(db, es, conf.BooksPath)))
+	shield := func(h http.Handler) http.Handler {
+		return uberich.Protect(h, http.NotFoundHandler())
+	}
 
-	route.Handle("/sign-in", mux.Method{"POST": persona.SignIn})
-	route.Handle("/sign-out", mux.Method{"GET": persona.SignOut})
+	route.Handle("/", mux.Method{"GET": uberich.Protect(handlers.List(true), handlers.List(false))})
+	route.Handle("/books", shield(handlers.AllBooks(db, es)))
+	route.Handle("/books/:id", shield(handlers.Books(db, es)))
+	route.Handle("/editions/:id", shield(handlers.Editions(db, conf.BooksPath)))
+	route.Handle("/upload", shield(handlers.Upload(db, es, conf.BooksPath)))
+
+	route.Handle("/sign-in", uberich.SignIn("/"))
+	route.Handle("/sign-out", uberich.SignOut("/"))
 	route.Handle("/events", es)
 	route.Handle("/assets/*filepath", http.StripPrefix("/assets/", assets.Server(map[string]string{
 		"main.js":        assets.MainJs,

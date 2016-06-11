@@ -14,7 +14,7 @@ const list = `
 
     {{if .}}
       <div id="cover">
-        <a id="browserid" href="#" title="Sign-in with Persona">Sign-in</a>
+        <a href="/sign-in">Sign-in</a>
       </div>
     {{end}}
 
