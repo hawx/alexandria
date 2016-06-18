@@ -8,12 +8,16 @@ First of all you will need the `ebook-convert` tool from [Calibre][] on your
 ``` bash
 $ go get alexandria
 $ cat > settings.toml
-users = ["you@domain.com"]
-secret = "some 32 or 64 byte string"
-audience = "hostname and port of place this will be"
+secret = "32 or 64 random bytes, like `head -c64 /dev/urandom | openssl base64`"
 database = "./some-db-path"
-library = "./some-dir-for-the-books"
-$ mkdir some-dir-for-the-books
+library = "./some-books-dir"
+
+[uberich]
+appName = "alexandria"
+appURL = "https://alexandria.example.com"
+uberichURL = "https://uberich.example.com"
+secret = "shared app secret"
+$ mkdir some-books-dir
 $ alexandria
 ...
 ```
