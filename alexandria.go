@@ -2,13 +2,11 @@ package main
 
 import (
 	"hawx.me/code/alexandria/data"
-	"hawx.me/code/alexandria/web/assets"
 	"hawx.me/code/alexandria/web/events"
 	"hawx.me/code/alexandria/web/filters"
 	"hawx.me/code/alexandria/web/handlers"
 
 	"github.com/BurntSushi/toml"
-	"hawx.me/code/mux"
 	"hawx.me/code/route"
 	"hawx.me/code/serve"
 	"hawx.me/code/uberich"
@@ -55,7 +53,7 @@ func main() {
 		return uberich.Protect(h, http.NotFoundHandler())
 	}
 
-	route.Handle("/", mux.Method{"GET": uberich.Protect(handlers.List(true), handlers.List(false))})
+	// route.Handle("/", mux.Method{"GET": uberich.Protect(handlers.List(true), handlers.List(false))})
 	route.Handle("/books", shield(handlers.AllBooks(db, es)))
 	route.Handle("/books/:id", shield(handlers.Books(db, es)))
 	route.Handle("/editions/:id", shield(handlers.Editions(db, conf.BooksPath)))
@@ -64,13 +62,15 @@ func main() {
 	route.Handle("/sign-in", uberich.SignIn("/"))
 	route.Handle("/sign-out", uberich.SignOut("/"))
 	route.Handle("/events", es)
-	route.Handle("/assets/*filepath", http.StripPrefix("/assets/", assets.Server(map[string]string{
-		"main.js":        assets.MainJs,
-		"mustache.js":    assets.MustacheJs,
-		"tablesorter.js": assets.TablesorterJs,
-		"tablefilter.js": assets.TablefilterJs,
-		"styles.css":     assets.StylesCss,
-	})))
+	// route.Handle("/assets/*filepath", http.StripPrefix("/assets/", assets.Server(map[string]string{
+	// 	"main.js":        assets.MainJs,
+	// 	"mustache.js":    assets.MustacheJs,
+	// 	"tablesorter.js": assets.TablesorterJs,
+	// 	"tablefilter.js": assets.TablefilterJs,
+	// 	"styles.css":     assets.StylesCss,
+	// })))
+
+	route.Handle("/", http.FileServer(http.Dir("/home/hawx/dev/go/src/hawx.me/code/alexandria/app/dist")))
 
 	serve.Serve(*port, *socket, filters.Log(route.Default))
 }
