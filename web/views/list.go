@@ -33,7 +33,6 @@ const list = `
     </table>
 
     <script src="//code.jquery.com/jquery-2.1.1.min.js"></script>
-    <script src="https://login.persona.org/include.js"></script>
     <script src="/assets/mustache.js"></script>
     <script src="/assets/tablefilter.js"></script>
     <script src="/assets/tablesorter.js"></script>
