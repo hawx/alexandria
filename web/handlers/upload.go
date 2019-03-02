@@ -7,7 +7,7 @@ import (
 	"hawx.me/code/alexandria/web/events"
 	"hawx.me/code/mux"
 
-	"code.google.com/p/go-uuid/uuid"
+	"github.com/google/uuid"
 
 	"errors"
 	"io"
@@ -62,7 +62,7 @@ func (h uploadHandler) doUpload(fileheader *multipart.FileHeader) error {
 	contentType := fileheader.Header["Content-Type"][0]
 
 	edition := &models.Edition{
-		Id:          uuid.New(),
+		Id:          uuid.New().String(),
 		ContentType: contentType,
 	}
 
@@ -96,7 +96,7 @@ func (h uploadHandler) doUpload(fileheader *multipart.FileHeader) error {
 	meta, _ := metaFunc(opened)
 
 	newBook := models.Book{
-		Id:       uuid.New(),
+		Id:       uuid.New().String(),
 		Added:    time.Now(),
 		Title:    meta.Title,
 		Author:   meta.Author,
@@ -148,7 +148,7 @@ func (h uploadHandler) convertEdition(book models.Book, contentType string) (*mo
 	}
 
 	edition := &models.Edition{
-		Id:          uuid.New(),
+		Id:          uuid.New().String(),
 		ContentType: contentType,
 	}
 
