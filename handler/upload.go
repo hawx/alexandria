@@ -1,14 +1,6 @@
-package handlers
+package handler
 
 import (
-	"hawx.me/code/alexandria/data"
-	"hawx.me/code/alexandria/data/models"
-	"hawx.me/code/alexandria/metadata"
-	"hawx.me/code/alexandria/web/events"
-	"hawx.me/code/mux"
-
-	"github.com/google/uuid"
-
 	"errors"
 	"io"
 	"log"
@@ -18,9 +10,15 @@ import (
 	"os/exec"
 	"path"
 	"time"
+
+	"github.com/google/uuid"
+	"hawx.me/code/alexandria/data"
+	"hawx.me/code/alexandria/data/models"
+	"hawx.me/code/alexandria/metadata"
+	"hawx.me/code/mux"
 )
 
-func Upload(db data.Db, es *events.Source, bookPath string) http.Handler {
+func Upload(db data.Db, es *Source, bookPath string) http.Handler {
 	h := uploadHandler{db, es, bookPath}
 
 	return mux.Method{
@@ -30,7 +28,7 @@ func Upload(db data.Db, es *events.Source, bookPath string) http.Handler {
 
 type uploadHandler struct {
 	db       data.Db
-	es       *events.Source
+	es       *Source
 	bookPath string
 }
 

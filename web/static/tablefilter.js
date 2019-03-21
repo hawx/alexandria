@@ -1,6 +1,4 @@
-package assets
-
-const TablefilterJs = `(function($) {
+(function($) {
   $.tableFilter = function(jq, phrase, ifHidden, tdElem) {
     if (!tdElem) tdElem = "td";
     var new_hidden = false;
@@ -68,4 +66,4 @@ const TablefilterJs = `(function($) {
     }
     return true;
   };
-}) (jQuery);`
+}) (jQuery);

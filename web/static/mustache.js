@@ -1,6 +1,4 @@
-package assets
-
-const MustacheJs = `/*
+/*
 Shameless port of a shameless port
 @defunkt => @janl => @aq
 
@@ -591,4 +589,4 @@ See http://github.com/defunkt/mustache for more info.
     });
   };
 
-})(jQuery);`
+})(jQuery);

@@ -1,6 +1,4 @@
-package assets
-
-const TablesorterJs = `/*
+/*
  *
  * TableSorter 2.0 - Client-side table sorting with ease!
  * Version 2.0.5b
@@ -1045,4 +1043,4 @@ const TablesorterJs = `/*
       }
     }
   });
-})(jQuery);`
+})(jQuery);

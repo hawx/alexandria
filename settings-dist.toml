@@ -1,5 +1,0 @@
-secret = "plzchange 32 or 64 bytes is best"
-database = "./alexandria-db"
-library = "./alexandria-books"
-url = "https://alexandria.example.com/"
-me = "https://john.example.com/"

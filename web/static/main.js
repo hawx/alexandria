@@ -1,6 +1,4 @@
-package assets
-
-const MainJs = `var http = (function() {
+var http = (function() {
   var request = function(method, url, success, error, data) {
     var sendingData = (data !== void 0);
 
@@ -185,23 +183,6 @@ var Rows = function(parent) {
   };
 };
 
-function gotAssertion(assertion) {
-  // got an assertion, now send it up to the server for verification
-  if (assertion !== null) {
-    $.ajax({
-      type: 'POST',
-      url: '/sign-in',
-      data: { assertion: assertion },
-      success: function(res, status, xhr) {
-        window.location.reload();
-      },
-      error: function(xhr, status, res) {
-        alert("login failure" + res);
-      }
-    });
-  }
-};
-
 function connect(rows) {
   var es = new EventSource('/events');
 
@@ -297,4 +278,4 @@ $(function($) {
       return node.childNodes[0].value;
     }
   });
-});`
+});

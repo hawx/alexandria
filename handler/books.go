@@ -1,25 +1,22 @@
-package handlers
+package handler
 
 import (
-	"hawx.me/code/alexandria/data"
-	"hawx.me/code/alexandria/data/models"
-	"hawx.me/code/alexandria/web/events"
-	"hawx.me/code/alexandria/web/response"
-	"hawx.me/code/route"
-
-	"hawx.me/code/mux"
-
 	"encoding/json"
 	"net/http"
+
+	"hawx.me/code/alexandria/data"
+	"hawx.me/code/alexandria/data/models"
+	"hawx.me/code/mux"
+	"hawx.me/code/route"
 )
 
-func AllBooks(db data.Db, es *events.Source) http.Handler {
+func AllBooks(db data.Db, es *Source) http.Handler {
 	return mux.Method{
 		"GET": booksHandler{db, es}.GetAll(),
 	}
 }
 
-func Books(db data.Db, es *events.Source) http.Handler {
+func Books(db data.Db, es *Source) http.Handler {
 	h := booksHandler{db, es}
 
 	return mux.Method{
@@ -31,13 +28,13 @@ func Books(db data.Db, es *events.Source) http.Handler {
 
 type booksHandler struct {
 	db data.Db
-	es *events.Source
+	es *Source
 }
 
 func (h booksHandler) GetAll() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response.ConvertBooks(h.db.Get()))
+		json.NewEncoder(w).Encode(convertBooks(h.db.Get()))
 	})
 }
 

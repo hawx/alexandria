@@ -1,20 +1,18 @@
-package events
+package handler
 
 import (
-	"hawx.me/code/alexandria/data/models"
-	"hawx.me/code/alexandria/web/response"
-
-	"github.com/antage/eventsource"
-
 	"encoding/json"
 	"net/http"
+
+	"github.com/antage/eventsource"
+	"hawx.me/code/alexandria/data/models"
 )
 
 type Source struct {
 	es eventsource.EventSource
 }
 
-func New() *Source {
+func Events() *Source {
 	return &Source{eventsource.New(nil, nil)}
 }
 
@@ -23,11 +21,11 @@ func (s *Source) Close() {
 }
 
 func (s *Source) Add(book models.Book) {
-	s.send("add", response.ConvertBook(book))
+	s.send("add", convertBook(book))
 }
 
 func (s *Source) Update(book models.Book) {
-	s.send("update", response.ConvertBook(book))
+	s.send("update", convertBook(book))
 }
 
 func (s *Source) Delete(book models.Book) {
