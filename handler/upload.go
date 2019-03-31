@@ -13,12 +13,11 @@ import (
 
 	"github.com/google/uuid"
 	"hawx.me/code/alexandria/data"
-	"hawx.me/code/alexandria/data/models"
 	"hawx.me/code/alexandria/metadata"
 	"hawx.me/code/mux"
 )
 
-func Upload(db data.Db, es *Source, bookPath string) http.Handler {
+func Upload(db *data.DB, es *Source, bookPath string) http.Handler {
 	h := uploadHandler{db, es, bookPath}
 
 	return mux.Method{
@@ -27,7 +26,7 @@ func Upload(db data.Db, es *Source, bookPath string) http.Handler {
 }
 
 type uploadHandler struct {
-	db       data.Db
+	db       *data.DB
 	es       *Source
 	bookPath string
 }
@@ -43,6 +42,7 @@ func (h uploadHandler) Upload() http.Handler {
 		files := r.MultipartForm.File["file"]
 		for _, file := range files {
 			if err := h.doUpload(file); err != nil {
+				log.Println(err)
 				http.Error(w, err.Error(), http.StatusInternalServerError)
 			}
 		}
@@ -59,8 +59,8 @@ func (h uploadHandler) doUpload(fileheader *multipart.FileHeader) error {
 
 	contentType := fileheader.Header["Content-Type"][0]
 
-	edition := &models.Edition{
-		Id:          uuid.New().String(),
+	edition := &data.Edition{
+		ID:          uuid.New().String(),
 		ContentType: contentType,
 	}
 
@@ -82,23 +82,23 @@ func (h uploadHandler) doUpload(fileheader *multipart.FileHeader) error {
 		return err
 	}
 
-	if contentType != models.MOBI && contentType != models.EPUB {
+	if contentType != data.MOBI && contentType != data.EPUB {
 		return errors.New("Format not supported: " + contentType)
 	}
 
 	metaFunc := metadata.Epub
-	if contentType == models.MOBI {
+	if contentType == data.MOBI {
 		metaFunc = metadata.Mobi
 	}
 
 	meta, _ := metaFunc(opened)
 
-	newBook := models.Book{
-		Id:       uuid.New().String(),
+	newBook := data.Book{
+		ID:       uuid.New().String(),
 		Added:    time.Now(),
 		Title:    meta.Title,
 		Author:   meta.Author,
-		Editions: models.Editions{edition},
+		Editions: data.Editions{edition},
 	}
 
 	h.db.Save(newBook)
@@ -109,7 +109,7 @@ func (h uploadHandler) doUpload(fileheader *multipart.FileHeader) error {
 	return nil
 }
 
-func (h uploadHandler) convert(contentType string, book models.Book) {
+func (h uploadHandler) convert(contentType string, book data.Book) {
 	editions, err := h.convertAll(book)
 	if err != nil {
 		log.Println(err)
@@ -122,13 +122,13 @@ func (h uploadHandler) convert(contentType string, book models.Book) {
 	h.es.Update(book)
 }
 
-func (h uploadHandler) convertAll(book models.Book) ([]*models.Edition, error) {
-	editions := []*models.Edition{}
+func (h uploadHandler) convertAll(book data.Book) ([]*data.Edition, error) {
+	editions := []*data.Edition{}
 
-	for _, contentType := range []string{models.MOBI, models.EPUB} {
+	for _, contentType := range []string{data.MOBI, data.EPUB} {
 		edition, err := h.convertEdition(book, contentType)
 		if err != nil {
-			return []*models.Edition{}, err
+			return []*data.Edition{}, err
 		}
 		if edition != nil {
 			editions = append(editions, edition)
@@ -138,15 +138,15 @@ func (h uploadHandler) convertAll(book models.Book) ([]*models.Edition, error) {
 	return editions, nil
 }
 
-func (h uploadHandler) convertEdition(book models.Book, contentType string) (*models.Edition, error) {
+func (h uploadHandler) convertEdition(book data.Book, contentType string) (*data.Edition, error) {
 	for _, edition := range book.Editions {
 		if edition.ContentType == contentType {
 			return nil, nil
 		}
 	}
 
-	edition := &models.Edition{
-		Id:          uuid.New().String(),
+	edition := &data.Edition{
+		ID:          uuid.New().String(),
 		ContentType: contentType,
 	}
 

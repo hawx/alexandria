@@ -1,281 +1,347 @@
-var http = (function() {
-  var request = function(method, url, success, error, data) {
-    var sendingData = (data !== void 0);
+/* global fetch, EventSource, FormData */
 
-    var r = new XMLHttpRequest();
-    r.open(method, url);
-    r.setRequestHeader('HTTP_X_CSRF_TOKEN', window.CSRF_TOKEN);
-    r.setRequestHeader('Accept', 'application/json');
-    if (sendingData) {
-      r.setRequestHeader('Content-Type', 'application/json');
-    }
+function h (tag, attrs = {}, children = []) {
+  const el = document.createElement(tag)
 
-    r.onload = function() {
-      if (r.status >= 200 && r.status < 300) {
-        success && success(JSON.parse(r.response));
-      } else {
-        error && error(Error(r.statusText));
-      }
-    };
-
-    r.onerror = function() {
-      error && error(Error("Network error"));
-    };
-
-    if (sendingData) {
-      r.send(JSON.stringify(data));
+  for (const attr in attrs) {
+    if (attr.startsWith('on')) {
+      el[attr] = e => attrs[attr](el, e)
     } else {
-      r.send();
+      el.setAttribute(attr, attrs[attr])
     }
-  };
-
-  return {
-    get: function(obj) {
-      request('GET', obj.url, obj.success, obj.error);
-    },
-    delete: function(obj) {
-      request('DELETE', obj.url, obj.success, obj.error);
-    },
-    post: function(obj) {
-      var r = new XMLHttpRequest();
-      r.open('POST', obj.url);
-      r.onload = function(e) {
-        if (r.status != 204) {
-          obj.error && obj.error(Error(r.statusText));
-        }
-      };
-
-      r.send(obj.formData);
-    },
-    patch: function(obj) {
-      request('PATCH', obj.url, obj.success, obj.error, obj.data);
-    }
-  };
-})();
-
-
-var Row = function(parent, id) {
-  var _id = id,
-      tmpl = "<tr id=\"{{id}}\">" +
-        "<td><input type=\"text\" class=\"title\" value=\"{{title}}\" /></td>" +
-        "<td><input type=\"text\" class=\"author\" value=\"{{author}}\" /></td>" +
-        "<td>{{added}}</td>" +
-        "<td class=\"editions\">" +
-        "  {{#editions}}" +
-        "    <a href=\"{{links.self.href}}\">{{name}}</a>" +
-        "   {{/editions}}" +
-        "</td>" +
-        "<!-- <td>" +
-        "  <a href=\"#\" class=\"delete\">delete</a>" +
-        "</td> -->" +
-        "</tr>",
-      editionsTmpl = "{{#editions}}" +
-        "  <a href=\"{{links.self.href}}\">{{name}}</a>" +
-        "{{/editions}}";
-
-  var deleteEvent = function() {
-    http.delete({url: '/books/' + _id});
-  };
-
-  var setTitleEvent = function() {
-    http.patch({
-      url: '/books/' + _id,
-      data: {title: this.val()}
-    });
-  };
-
-  var setAuthorEvent = function() {
-    http.patch({
-      url: '/books/' + _id,
-      data: {author: this.val()}
-    });
-  };
-
-  var render = function(output, next) {
-    parent.append(output);
-
-    var del = parent.find('#' + _id + ' .delete');
-    del.click(deleteEvent);
-
-    var title = parent.find('#' + _id + ' .title');
-    title.blur(setTitleEvent.bind(title));
-    title.keypress(function(e) {
-      if (e.keyCode == 13) {
-        title.blur();
-      }
-    });
-
-    var author = parent.find('#' + _id + ' .author');
-    author.blur(setAuthorEvent.bind(author));
-    author.keypress(function(e) {
-      if (e.keyCode == 13) {
-        author.blur();
-      }
-    });
-
-    next && next();
-  };
-
-  this.remove = function() {
-    parent.find('#' + _id).remove();
-  };
-
-  this.update = function(data, next) {
-    var el = parent.find('#' + _id);
-    el.find('.title').val(data.title);
-    el.find('.author').val(data.author);
-
-    var editionsText = Mustache.render(editionsTmpl, data);
-    el.find('.editions').html(editionsText);
-  };
-
-  this.add = function(data, next) {
-    var output = Mustache.render(tmpl, data);
-    render(output, next);
-  };
-};
-
-var Rows = function(parent) {
-  this.render = function(next) {
-    http.get({
-      url: '/books',
-      success: function(data) {
-        for (var i = 0; i < data.books.length; i++) {
-          var row = new Row(parent, data.books[i].id);
-          _rows[data.books[i].id] = row;
-          row.add(data.books[i]);
-        }
-
-        next && next();
-      }
-    });
-  };
-
-  var _rows = {};
-
-  this.add = function(id, data) {
-    var row = new Row(parent, id);
-    _rows[id] = row;
-    row.add(data);
-  };
-
-  this.addTemp = function(name) {
-    var t = "<tr class=\"temp\">" +
-          "  <td>Uploading</td>" +
-          "  <td>" + name + "</td>" +
-          "  <td></td>" +
-          "  <td></td>" +
-          "</tr>";
-
-    parent.append(t);
-  };
-
-  this.removeTemp = function() {
-    parent.find(".temp")[0].remove();
-  };
-
-  this.update = function(id, data) {
-    _rows[id].update(data);
-  };
-
-  this.remove = function(id) {
-    _rows[id].remove();
-  };
-};
-
-function connect(rows) {
-  var es = new EventSource('/events');
-
-  es.addEventListener("add", function(e) {
-    rows.removeTemp();
-    var obj = JSON.parse(e.data);
-    rows.add(obj.id, obj);
-  }, false);
-
-  es.addEventListener("update", function(e) {
-    var obj = JSON.parse(e.data);
-    rows.update(obj.id, obj);
-  }, false);
-
-  es.addEventListener("delete", function(e) {
-    var obj = JSON.parse(e.data);
-    rows.remove(obj.id);
-  }, false);
-}
-
-function upload(rows, files) {
-  var formData = new FormData();
-  for (var i = 0; i < files.length; i++) {
-    rows.addTemp(files[i].name);
-    formData.append('file', files[i]);
   }
 
-  http.post({
-    url: '/upload',
-    formData: formData
-  });
+  for (const child of children) {
+    if (typeof child === 'string') {
+      el.appendChild(document.createTextNode(child))
+    } else {
+      el.appendChild(child)
+    }
+  }
+
+  return el
 }
 
-function cancel(fn) {
-  return function(event) {
-    fn(event);
+function editionsTmpl (data) {
+  return data.editions.map(edition => h('a', { href: edition.links.self.href }, [edition.name]))
+}
+
+class Row {
+  constructor (parent, id) {
+    this.parent = parent
+    this.id = id
+  }
+
+  delete () {
+    return fetch(`/books/${this.id}`, { method: 'DELETE' })
+  }
+
+  setTitle (title) {
+    return fetch(`/books/${this.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ title })
+    })
+  }
+
+  setAuthor (author) {
+    return fetch(`/books/${this.id}`, {
+      method: 'PATCH',
+      body: JSON.stringify({ author })
+    })
+  }
+
+  render (data, next) {
+    const output = h('tr', { id: data.id }, [
+      h('td', {}, [
+        h('input', {
+          class: 'title',
+          value: data.title,
+          onblur: me => this.setTitle(me.value),
+          onkeypress: (me, e) => {
+            if (e.keyCode === 13) me.blur()
+          }
+        })
+      ]),
+      h('td', {}, [
+        h('input', {
+          class: 'author',
+          value: data.author,
+          onblur: me => this.setAuthor(me.value),
+          onkeypress: (me, e) => {
+            if (e.keyCode === 13) me.blur()
+          }
+        })
+      ]),
+      h('td', {}, [data.added]),
+      h('td', { class: 'editions' }, editionsTmpl(data))
+      // h('td', { class: 'delete' }, [
+      //   h('a', {
+      //     href: '#',
+      //     class: 'delete',
+      //     onclick: () => this.delete(),
+      //   }, [
+      //     'delete',
+      //   ]),
+      // ])
+    ])
+
+    this.parent.querySelector('tbody').appendChild(output)
+
+    next && next()
+  }
+
+  remove () {
+    const parent = this.parent.querySelector('tbody')
+    const el = document.getElementById(this.id)
+
+    parent.removeChild(el)
+  }
+
+  update (data, next) {
+    const el = document.getElementById(this.id)
+
+    el.querySelector('.title').value = data.title
+    el.querySelector('.author').value = data.author
+
+    const editions = el.querySelector('.editions')
+
+    for (const child of editions.children) {
+      editions.removeChild(child)
+    }
+    for (const child of editionsTmpl(data)) {
+      editions.appendChild(child)
+    }
+  }
+
+  add (data, next) {
+    this.render(data, next)
+  }
+}
+
+class Rows {
+  constructor (parent) {
+    this.parent = parent
+    this._rows = {}
+  }
+
+  render (next) {
+    return fetch('/books')
+      .then(resp => resp.json())
+      .then(data => {
+        for (const book of data.books) {
+          this.add(book.id, book)
+        }
+
+        next && next()
+      })
+  }
+
+  add (id, data) {
+    var row = new Row(this.parent, id)
+    this._rows[id] = row
+    row.add(data)
+  }
+
+  addTemp (name) {
+    this.temp = h('tr', { class: 'temp' }, [
+      h('td', {}, ['Uploading']),
+      h('td', {}, [name]),
+      h('td'),
+      h('td')
+    ])
+
+    this.parent.appendChild(this.temp)
+  }
+
+  removeTemp () {
+    this.parent.removeChild(this.temp)
+  }
+
+  update (id, data) {
+    this._rows[id].update(data)
+  }
+
+  remove (id) {
+    this._rows[id].remove()
+  }
+}
+
+function upload (rows, files) {
+  const formData = new FormData()
+  for (const file of files) {
+    rows.addTemp(file.name)
+    formData.append('file', file)
+  }
+
+  return fetch('/upload', {
+    method: 'POST',
+    body: formData
+  })
+}
+
+function cancel (fn) {
+  return function (event) {
+    fn(event)
 
     if (event.preventDefault) {
-      event.preventDefault();
+      event.preventDefault()
     }
-    return false;
-  };
+    return false
+  }
 }
 
-$(function($) {
-  $('#browserid').click(function() {
-    navigator.id.get(gotAssertion);
-  });
+function sortable (table, initial) {
+  const ths = table.querySelectorAll('th')
+  let sortIndex = initial; let sortDirection = -1
 
-  var body = document.body;
-  var table = $('table');
-  var rows = new Rows(table);
+  function sortOn (heading, index) {
+    return () => {
+      if (sortIndex === index) {
+        sortDirection *= -1
 
-  rows.render(function() {
-    table
-      .trigger("update")
-      .trigger("appendCache")
-      .trigger('sortOn', [[1, 0]]);
-  });
+        if (sortDirection === 1) {
+          heading.classList.add('descending')
+          heading.classList.remove('ascending')
+        } else {
+          heading.classList.add('ascending')
+          heading.classList.remove('descending')
+        }
+      } else {
+        ths[sortIndex].classList.remove('ascending')
+        ths[sortIndex].classList.remove('descending')
 
-  document.ondragenter = cancel(function(ev) {
-    body.className = 'drag';
-  });
+        sortIndex = index
+        sortDirection = 1
 
-  document.ondragover = cancel(function(ev) {
-    body.className = 'drag';
-  });
-
-  document.ondragleave = cancel(function(ev) {
-    body.className = '';
-  });
-
-  document.ondrop = cancel(function(ev) {
-    body.className = '';
-    upload(rows, ev.dataTransfer.files);
-  });
-
-  connect(rows);
-
-  $('#filter').keyup(function() {
-    $.tableFilter(table, this.value);
-  });
-
-  table.tablesorter({
-    sortList: [[2,1]],
-    cssAsc: 'ascending',
-    cssDesc: 'descending',
-    textExtraction: function(node) {
-      if (node.childNodes[0].nodeName === "#text") {
-        return node.childNodes[0].textContent;
+        heading.classList.add('descending')
       }
 
-      return node.childNodes[0].value;
+      resort()
     }
-  });
-});
+  }
+
+  function resort () {
+    const tbody = table.querySelector('tbody')
+    const trs = tbody.querySelectorAll('tr')
+    const mapped = []
+
+    for (const tr of trs) {
+      const td = tr.querySelectorAll('td')[sortIndex]
+      const text = td.firstChild.value || td.firstChild.textContent
+
+      mapped.push([text, tr])
+      tbody.removeChild(tr)
+    }
+
+    mapped.sort((a, b) => {
+      return a[0] < b[0] ? -sortDirection : sortDirection
+    })
+
+    for (const [, row] of mapped) {
+      tbody.appendChild(row)
+    }
+  }
+
+  for (let i = 0; i < ths.length; i++) {
+    ths[i].onclick = sortOn(ths[i], i)
+  }
+
+  return [sortOn(ths[sortIndex], sortIndex), resort]
+}
+
+function filterable (table, filter, next) {
+  let hidden = []
+
+  filter.onkeyup = () => {
+    const tbody = table.querySelector('tbody')
+    const trs = tbody.querySelectorAll('tr')
+    const needle = filter.value
+
+    if (needle === '') {
+      for (const tr of hidden) {
+        tbody.appendChild(tr)
+      }
+      hidden = []
+      next()
+      return
+    }
+
+    for (const tr of trs) {
+      const tds = tr.querySelectorAll('td')
+      let match = false
+
+      for (const td of tds) {
+        const text = td.firstChild.value || td.firstChild.textContent
+
+        if (text.toLowerCase().includes(needle.toLowerCase())) {
+          match = true
+          break
+        }
+      }
+
+      if (!match) {
+        hidden.push(tr)
+        tbody.removeChild(tr)
+      }
+    }
+
+    const newHidden = []
+    for (const tr of hidden) {
+      const tds = tr.querySelectorAll('td')
+      let match = false
+
+      for (const td of tds) {
+        const text = td.firstChild.value || td.firstChild.textContent
+
+        if (text.toLowerCase().includes(needle.toLowerCase())) {
+          match = true
+          break
+        }
+      }
+
+      if (!match) {
+        newHidden.push(tr)
+      } else {
+        tbody.appendChild(tr)
+      }
+    }
+
+    hidden = newHidden
+    next()
+  }
+}
+
+const body = document.body
+const table = document.querySelector('table')
+const rows = new Rows(table)
+
+const [initial, resort] = sortable(table, 1)
+filterable(table, document.querySelector('#filter'), resort)
+rows.render(initial)
+
+document.ondragenter = cancel(() => { body.className = 'drag' })
+document.ondragover = cancel(() => { body.className = 'drag' })
+document.ondragleave = cancel(() => { body.className = '' })
+
+document.ondrop = cancel(ev => {
+  body.className = ''
+  upload(rows, ev.dataTransfer.files)
+})
+
+const es = new EventSource('/events')
+
+es.addEventListener('add', e => {
+  rows.removeTemp()
+  const obj = JSON.parse(e.data)
+  rows.add(obj.id, obj)
+}, false)
+
+es.addEventListener('update', e => {
+  const obj = JSON.parse(e.data)
+  rows.update(obj.id, obj)
+}, false)
+
+es.addEventListener('delete', e => {
+  const obj = JSON.parse(e.data)
+  rows.remove(obj.id)
+}, false)

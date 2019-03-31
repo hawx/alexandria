@@ -1,4 +1,4 @@
-package models
+package data
 
 import (
 	"net/url"
@@ -13,7 +13,7 @@ const (
 type Editions []*Edition
 
 type Edition struct {
-	Id          string `json:"id"`
+	ID          string `json:"id"`
 	ContentType string `json:"content-type"`
 }
 
@@ -28,13 +28,13 @@ func (e Edition) Extension() string {
 }
 
 func (e Edition) Path() string {
-	return e.Id + e.Extension()
+	return e.ID + e.Extension()
 }
 
 type Books []*Book
 
 type Book struct {
-	Id       string    `json:"id"`
+	ID       string    `json:"id"`
 	Title    string    `json:"title"`
 	Author   string    `json:"author"`
 	Added    time.Time `json:"added"`

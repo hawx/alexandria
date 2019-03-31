@@ -5,18 +5,17 @@ import (
 	"net/http"
 
 	"hawx.me/code/alexandria/data"
-	"hawx.me/code/alexandria/data/models"
 	"hawx.me/code/mux"
 	"hawx.me/code/route"
 )
 
-func AllBooks(db data.Db, es *Source) http.Handler {
+func AllBooks(db *data.DB, es *Source) http.Handler {
 	return mux.Method{
 		"GET": booksHandler{db, es}.GetAll(),
 	}
 }
 
-func Books(db data.Db, es *Source) http.Handler {
+func Books(db *data.DB, es *Source) http.Handler {
 	h := booksHandler{db, es}
 
 	return mux.Method{
@@ -27,14 +26,20 @@ func Books(db data.Db, es *Source) http.Handler {
 }
 
 type booksHandler struct {
-	db data.Db
+	db *data.DB
 	es *Source
 }
 
 func (h booksHandler) GetAll() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		books, err := h.db.Get()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		w.Header().Add("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(convertBooks(h.db.Get()))
+		json.NewEncoder(w).Encode(convertBooks(books))
 	})
 }
 
@@ -63,7 +68,7 @@ func (h booksHandler) Update() http.Handler {
 			return
 		}
 
-		var req models.Book
+		var req data.Book
 		json.NewDecoder(r.Body).Decode(&req)
 
 		if req.Title != "" {

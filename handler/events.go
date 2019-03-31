@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/antage/eventsource"
-	"hawx.me/code/alexandria/data/models"
+	"hawx.me/code/alexandria/data"
 )
 
 type Source struct {
@@ -20,18 +20,18 @@ func (s *Source) Close() {
 	s.es.Close()
 }
 
-func (s *Source) Add(book models.Book) {
+func (s *Source) Add(book data.Book) {
 	s.send("add", convertBook(book))
 }
 
-func (s *Source) Update(book models.Book) {
+func (s *Source) Update(book data.Book) {
 	s.send("update", convertBook(book))
 }
 
-func (s *Source) Delete(book models.Book) {
+func (s *Source) Delete(book data.Book) {
 	s.send("delete", struct {
-		Id string `json:"id"`
-	}{book.Id})
+		ID string `json:"id"`
+	}{book.ID})
 }
 
 func (s *Source) ServeHTTP(w http.ResponseWriter, r *http.Request) {

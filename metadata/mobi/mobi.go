@@ -56,8 +56,8 @@ func (m *mobi) Metadata() (Metadata, error) {
 		Version         uint16   // 34
 		CreationDate    uint32   // 36
 		_               [12]byte // 40
-		AppInfoId       uint32   // 52
-		SortInfoId      uint32   // 56
+		AppInfoID       uint32   // 52
+		SortInfoID      uint32   // 56
 		Type            [4]byte  // 60
 		Creator         [4]byte  // 64
 		_               [8]byte  // 68

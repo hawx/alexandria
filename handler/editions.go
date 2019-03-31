@@ -13,7 +13,7 @@ import (
 	"hawx.me/code/route"
 )
 
-func Editions(db data.Db, bookPath string) http.Handler {
+func Editions(db *data.DB, bookPath string) http.Handler {
 	h := editionsHandler{db, bookPath}
 
 	return mux.Method{
@@ -22,7 +22,7 @@ func Editions(db data.Db, bookPath string) http.Handler {
 }
 
 type editionsHandler struct {
-	db       data.Db
+	db       *data.DB
 	bookPath string
 }
 

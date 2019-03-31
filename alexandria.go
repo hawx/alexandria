@@ -43,7 +43,10 @@ func main() {
 		log.Fatal("could not load templates:", err)
 	}
 
-	db := data.Open(*dbPath)
+	db, err := data.Open(*dbPath)
+	if err != nil {
+		log.Fatal(err)
+	}
 	defer db.Close()
 
 	es := handler.Events()

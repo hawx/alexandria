@@ -49,6 +49,10 @@ tbody tr:nth-child(odd) {
     background: #efefef;
 }
 
+tbody tr.hide {
+    display: none;
+}
+
 table th {
     text-align: left;
 }

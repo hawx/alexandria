@@ -3,7 +3,7 @@ package handler
 import (
 	"sort"
 
-	"hawx.me/code/alexandria/data/models"
+	"hawx.me/code/alexandria/data"
 )
 
 type hrefResponse struct {
@@ -11,7 +11,7 @@ type hrefResponse struct {
 }
 
 type editionResponse struct {
-	Id    string                  `json:"id"`
+	ID    string                  `json:"id"`
 	Name  string                  `json:"name"`
 	Links map[string]hrefResponse `json:"links"`
 }
@@ -19,7 +19,7 @@ type editionResponse struct {
 type editionsResponse []editionResponse
 
 type bookResponse struct {
-	Id       string                  `json:"id"`
+	ID       string                  `json:"id"`
 	Title    string                  `json:"title"`
 	Author   string                  `json:"author"`
 	Added    string                  `json:"added"`
@@ -45,17 +45,17 @@ type rootResponse struct {
 	Books booksResponse `json:"books"`
 }
 
-func convertEdition(edition models.Edition) editionResponse {
+func convertEdition(edition data.Edition) editionResponse {
 	return editionResponse{
-		Id:   edition.Id,
+		ID:   edition.ID,
 		Name: edition.Extension()[1:],
 		Links: map[string]hrefResponse{
-			"self": {"/editions/" + edition.Id},
+			"self": {"/editions/" + edition.ID},
 		},
 	}
 }
 
-func convertBook(book models.Book) bookResponse {
+func convertBook(book data.Book) bookResponse {
 	editions := make([]editionResponse, len(book.Editions))
 
 	for j, edition := range book.Editions {
@@ -63,18 +63,18 @@ func convertBook(book models.Book) bookResponse {
 	}
 
 	return bookResponse{
-		Id:       book.Id,
+		ID:       book.ID,
 		Title:    book.Title,
 		Author:   book.Author,
 		Added:    book.Added.Format("2006-01-02"),
 		Editions: editions,
 		Links: map[string]hrefResponse{
-			"self": {"/books/" + book.Id},
+			"self": {"/books/" + book.ID},
 		},
 	}
 }
 
-func convertBooks(modelBooks models.Books) rootResponse {
+func convertBooks(modelBooks data.Books) rootResponse {
 	books := booksResponse{}
 
 	for _, book := range modelBooks {

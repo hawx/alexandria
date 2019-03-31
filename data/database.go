@@ -1,68 +1,58 @@
 package data
 
 import (
-	"hawx.me/code/alexandria/data/models"
-
-	"github.com/boltdb/bolt"
-
 	"encoding/json"
 	"fmt"
-	"log"
+
+	"github.com/boltdb/bolt"
 )
 
-type Db interface {
-	Get() models.Books
-	Find(string) (models.Book, bool)
-	FindEdition(string) (*models.Edition, *models.Book, bool)
-	Save(models.Book)
-	Remove(models.Book)
-	Close()
-}
-
-type BoltDb struct {
+type DB struct {
 	me *bolt.DB
 }
 
 const bucketName = "alexandria"
 
-func Open(path string) Db {
+func Open(path string) (*DB, error) {
 	db, err := bolt.Open(path, 0600, nil)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 
-	db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucket([]byte(bucketName))
+	err = db.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte(bucketName))
 		if err != nil {
 			return fmt.Errorf("create bucket: %s", err)
 		}
 		return nil
 	})
 
-	return BoltDb{db}
+	return &DB{db}, err
 }
 
-func (db BoltDb) Get() models.Books {
-	list := models.Books{}
+func (db *DB) Get() (Books, error) {
+	list := Books{}
 
-	db.me.View(func(tx *bolt.Tx) error {
+	err := db.me.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		c := b.Cursor()
 
 		for k, v := c.First(); k != nil; k, v = c.Next() {
-			var book models.Book
-			json.Unmarshal(v, &book)
+			var book Book
+			if err := json.Unmarshal(v, &book); err != nil {
+				return err
+			}
 			list = append(list, &book)
 		}
 
 		return nil
 	})
 
-	return list
+	return list, err
 }
 
-func (db BoltDb) Find(id string) (book models.Book, ok bool) {
-	db.me.View(func(tx *bolt.Tx) error {
+func (db *DB) Find(id string) (book Book, ok bool) {
+	if err := db.me.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		v := b.Get([]byte(id))
 		if v != nil {
@@ -70,17 +60,22 @@ func (db BoltDb) Find(id string) (book models.Book, ok bool) {
 			ok = true
 		}
 		return nil
-	})
+	}); err != nil {
+		return book, false
+	}
 
 	return book, ok
 }
 
-func (db BoltDb) FindEdition(id string) (*models.Edition, *models.Book, bool) {
-	books := db.Get()
+func (db *DB) FindEdition(id string) (*Edition, *Book, bool) {
+	books, err := db.Get()
+	if err != nil {
+		return nil, nil, false
+	}
 
 	for _, book := range books {
 		for _, edition := range book.Editions {
-			if id == edition.Id {
+			if id == edition.ID {
 				return edition, book, true
 			}
 		}
@@ -89,23 +84,26 @@ func (db BoltDb) FindEdition(id string) (*models.Edition, *models.Book, bool) {
 	return nil, nil, false
 }
 
-func (db BoltDb) Save(book models.Book) {
-	key := book.Id
-	serialised, _ := json.Marshal(book)
+func (db *DB) Save(book Book) error {
+	key := book.ID
+	serialised, err := json.Marshal(book)
+	if err != nil {
+		return err
+	}
 
-	db.me.Update(func(tx *bolt.Tx) error {
+	return db.me.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
 		return b.Put([]byte(key), serialised)
 	})
 }
 
-func (db BoltDb) Remove(book models.Book) {
-	db.me.Update(func(tx *bolt.Tx) error {
+func (db *DB) Remove(book Book) error {
+	return db.me.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(bucketName))
-		return b.Delete([]byte(book.Id))
+		return b.Delete([]byte(book.ID))
 	})
 }
 
-func (db BoltDb) Close() {
-	db.me.Close()
+func (db *DB) Close() error {
+	return db.me.Close()
 }
