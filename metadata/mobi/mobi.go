@@ -151,6 +151,8 @@ func (m *mobi) Metadata() (Metadata, error) {
 				metadata.Type = val
 			case 112:
 				metadata.Source = val
+			case 503:
+				metadata.Title = val
 			}
 		}
 
@@ -164,9 +166,12 @@ func (m *mobi) Metadata() (Metadata, error) {
 		}
 	}
 
-	name := make([]byte, mobiHeader.FullNameLength)
-	binary.Read(p, binary.BigEndian, &name)
-	metadata.Title = string(name[:])
+	if metadata.Title == "" {
+		name := make([]byte, mobiHeader.FullNameLength)
+		binary.Read(p, binary.BigEndian, &name)
+
+		metadata.Title = string(name[:])
+	}
 
 	return metadata, nil
 }
