@@ -102,7 +102,7 @@ td a {
     height: 100%;
     width: 100%;
     background: rgba(0, 255, 255, .7);
-    display: block
+    display: block;
     padding: 0;
     margin: 0;
 }
