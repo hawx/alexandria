@@ -8,8 +8,7 @@ import (
 
 	"hawx.me/code/alexandria/data"
 	"hawx.me/code/alexandria/handler"
-	"hawx.me/code/indieauth"
-	"hawx.me/code/indieauth/sessions"
+	"hawx.me/code/indieauth/v2"
 	"hawx.me/code/mux"
 	"hawx.me/code/route"
 	"hawx.me/code/serve"
@@ -28,12 +27,10 @@ func main() {
 	)
 	flag.Parse()
 
-	auth, err := indieauth.Authentication(*url, *url+"callback")
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	session, err := sessions.New(*me, *secret, auth)
+	session, err := indieauth.NewSessions(*secret, &indieauth.Config{
+		ClientID:    *url,
+		RedirectURL: *url + "callback",
+	})
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,15 +49,37 @@ func main() {
 	es := handler.Events()
 	defer es.Close()
 
-	route.Handle("/", mux.Method{"GET": session.Choose(handler.List(true, templates), handler.List(false, templates))})
-	route.Handle("/books", session.Shield(handler.AllBooks(db, es)))
-	route.Handle("/books/:id", session.Shield(handler.Books(db, es)))
-	route.Handle("/editions/:id", session.Shield(handler.Editions(db, *booksPath)))
-	route.Handle("/upload", session.Shield(handler.Upload(db, es, *booksPath)))
+	choose := func(a, b http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if response, ok := session.SignedIn(r); ok && response.Me == *me {
+				a.ServeHTTP(w, r)
+			} else {
+				b.ServeHTTP(w, r)
+			}
+		})
+	}
 
-	route.Handle("/sign-in", session.SignIn())
-	route.Handle("/callback", session.Callback())
-	route.Handle("/sign-out", session.SignOut())
+	shield := func(a http.Handler) http.Handler {
+		return choose(a, http.NotFoundHandler())
+	}
+
+	route.Handle("/", mux.Method{"GET": choose(handler.List(true, templates), handler.List(false, templates))})
+	route.Handle("/books", shield(handler.AllBooks(db, es)))
+	route.Handle("/books/:id", shield(handler.Books(db, es)))
+	route.Handle("/editions/:id", shield(handler.Editions(db, *booksPath)))
+	route.Handle("/upload", shield(handler.Upload(db, es, *booksPath)))
+
+	route.HandleFunc("/sign-in", func(w http.ResponseWriter, r *http.Request) {
+		session.RedirectToSignIn(w, r, *me)
+	})
+	route.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
+		session.HandleCallback(w, r)
+		http.Redirect(w, r, "/", http.StatusFound)
+	})
+	route.HandleFunc("/sign-out", func(w http.ResponseWriter, r *http.Request) {
+		session.SignOut(w, r)
+		http.Redirect(w, r, "/", http.StatusFound)
+	})
 
 	route.Handle("/events", es)
 	route.Handle("/public/*path", http.StripPrefix("/public", http.FileServer(http.Dir(*webPath+"/static"))))

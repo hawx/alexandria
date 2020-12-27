@@ -9,9 +9,9 @@ require (
 	github.com/coreos/go-systemd v0.0.0-20191104093116-d3cd4ed1dbcf // indirect
 	github.com/google/uuid v1.1.2
 	github.com/gorilla/sessions v1.2.1 // indirect
-	golang.org/x/net v0.0.0-20201216054612-986b41b23924 // indirect
 	golang.org/x/sys v0.0.0-20201223074533-0d417f636930 // indirect
 	hawx.me/code/indieauth v1.0.2
+	hawx.me/code/indieauth/v2 v2.0.0-alpha.2 // indirect
 	hawx.me/code/mux v0.0.0-20200114141251-90c3d0ef8fe2
 	hawx.me/code/route v1.0.0
 	hawx.me/code/serve v0.0.0-20190207181551-eb94630184cf
