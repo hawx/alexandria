@@ -49,35 +49,37 @@ func main() {
 	es := handler.Events()
 	defer es.Close()
 
-	choose := func(a, b http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	signedIn := func(a http.Handler) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
 			if response, ok := session.SignedIn(r); ok && response.Me == *me {
 				a.ServeHTTP(w, r)
 			} else {
-				b.ServeHTTP(w, r)
+				http.NotFound(w, r)
 			}
-		})
+		}
 	}
 
-	shield := func(a http.Handler) http.Handler {
-		return choose(a, http.NotFoundHandler())
-	}
-
-	route.Handle("/", mux.Method{"GET": choose(handler.List(true, templates), handler.List(false, templates))})
-	route.Handle("/books", shield(handler.AllBooks(db, es)))
-	route.Handle("/books/:id", shield(handler.Books(db, es)))
-	route.Handle("/editions/:id", shield(handler.Editions(db, *booksPath)))
-	route.Handle("/upload", shield(handler.Upload(db, es, *booksPath)))
+	route.Handle("/", mux.Method{"GET": handler.List(*me, templates, session)})
+	route.Handle("/books", signedIn(handler.AllBooks(db, es)))
+	route.Handle("/books/:id", signedIn(handler.Books(db, es)))
+	route.Handle("/editions/:id", signedIn(handler.Editions(db, *booksPath)))
+	route.Handle("/upload", signedIn(handler.Upload(db, es, *booksPath)))
 
 	route.HandleFunc("/sign-in", func(w http.ResponseWriter, r *http.Request) {
-		session.RedirectToSignIn(w, r, *me)
+		if err := session.RedirectToSignIn(w, r, *me); err != nil {
+			log.Println(err)
+		}
 	})
 	route.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-		session.HandleCallback(w, r)
+		if err := session.Verify(w, r); err != nil {
+			log.Println(err)
+		}
 		http.Redirect(w, r, "/", http.StatusFound)
 	})
 	route.HandleFunc("/sign-out", func(w http.ResponseWriter, r *http.Request) {
-		session.SignOut(w, r)
+		if err := session.SignOut(w, r); err != nil {
+			log.Println(err)
+		}
 		http.Redirect(w, r, "/", http.StatusFound)
 	})
 

@@ -4,15 +4,30 @@ import (
 	"io"
 	"log"
 	"net/http"
+
+	"hawx.me/code/indieauth/v2"
 )
 
-func List(loggedIn bool, templates interface {
+type Templates interface {
 	ExecuteTemplate(w io.Writer, name string, data interface{}) error
-}) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+}
+
+type Sessions interface {
+	SignedIn(*http.Request) (*indieauth.Response, bool)
+}
+
+func List(me string, templates Templates, sessions Sessions) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Add("Content-Type", "text/html")
-		if err := templates.ExecuteTemplate(w, "list.gotmpl", !loggedIn); err != nil {
+		response, ok := sessions.SignedIn(r)
+
+		tmpl := "signin.gotmpl"
+		if ok && response.Me == me {
+			tmpl = "list.gotmpl"
+		}
+
+		if err := templates.ExecuteTemplate(w, tmpl, nil); err != nil {
 			log.Println(err)
 		}
-	})
+	}
 }

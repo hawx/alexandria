@@ -15,6 +15,11 @@ h1 {
     font: italic 28px/1.3em Georgia;
 }
 
+h1 a {
+    color: black;
+    text-decoration: none;
+}
+
 #filter {
     position: absolute;
     top: 2em;
