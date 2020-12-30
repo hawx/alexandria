@@ -32,6 +32,8 @@ github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+
 github.com/stretchr/testify v1.2.2 h1:bSDNvY7ZPG5RlJ8otE/7V6gMiyenm9RtJ7IUVIAoJ1w=
 github.com/stretchr/testify v1.2.2/go.mod h1:a8OnRcib4nhh0OaRAV+Yts87kKdq0PP7pXfy6kDkUVs=
 github.com/stretchr/testify v1.4.0/go.mod h1:j7eGeouHqKxXV5pUuKE4zz7dFj8WfuZ+81PSLYec5m4=
+github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80 h1:nrZ3ySNYwJbSpD6ce9duiP+QkD3JuLCcWkdaehUS/3Y=
+github.com/tomnomnom/linkheader v0.0.0-20180905144013-02ca5825eb80/go.mod h1:iFyPdL66DjUD96XmzVL3ZntbzcflLnznH0fr99w5VqE=
 golang.org/x/net v0.0.0-20190213061140-3a22650c66bd h1:HuTn7WObtcDo9uEEU7rEqL0jYthdXAmZ6PP+meazmaU=
 golang.org/x/net v0.0.0-20190213061140-3a22650c66bd/go.mod h1:mL1N/T3taQHkDXs73rZJwtUhF3w3ftmwwsq0BUmARs4=
 golang.org/x/net v0.0.0-20201216054612-986b41b23924 h1:QsnDpLLOKwHBBDa8nDws4DYNc/ryVW2vCpxCs09d4PY=
@@ -61,6 +63,8 @@ hawx.me/code/indieauth/v2 v2.0.0-alpha.2 h1:mqRdeeZXOxLzYzOoDPyyO7UG2ZmAhELzqcI1
 hawx.me/code/indieauth/v2 v2.0.0-alpha.2/go.mod h1:01ijE8JHMJv5MZQtBWpHCbXSmHnVRUAfe2NAWAWF/Qw=
 hawx.me/code/indieauth/v2 v2.0.0-alpha.3 h1:PiT3lmrDLcKN4FBAd5YeDUFfhieu/3yIDiGi2xVTHx4=
 hawx.me/code/indieauth/v2 v2.0.0-alpha.3/go.mod h1:01ijE8JHMJv5MZQtBWpHCbXSmHnVRUAfe2NAWAWF/Qw=
+hawx.me/code/indieauth/v2 v2.0.0 h1:GQAbCpCHKc0CgzTUq+N04dLDM6dOcmOKLFik1N3HGa4=
+hawx.me/code/indieauth/v2 v2.0.0/go.mod h1:oiUWdYXWNEWUxc+6GNx/K8cw/+xQ9Yk7/uRY/fG8Lgw=
 hawx.me/code/mux v0.0.0-20171229202905-76b5c781b7be h1:9VsLoSnY4fuT3s3FGN0FfvLyxUBCf0fTTp83IPkWmvs=
 hawx.me/code/mux v0.0.0-20171229202905-76b5c781b7be/go.mod h1:giDiKi08+l32ySywBkUVYkqQWuJgTLbK+RYR9qbvNw8=
 hawx.me/code/mux v0.0.0-20200114141251-90c3d0ef8fe2 h1:4Ng7wj7qy4n5d0zS7pfeZoegnZQsoHRGEMxXZ0+U0bQ=
